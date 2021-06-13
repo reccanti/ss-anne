@@ -6,17 +6,18 @@ import {
 } from "@material-ui/core";
 import { blueGrey, red } from "@material-ui/core/colors";
 import "./App.css";
+import { Board } from "./Board";
 import { useSetupContext, SetupProvider } from "./SetupManager";
 
-const useStyles = makeStyles({
-  tile: {
-    backgroundColor: blueGrey["900"],
-  },
-});
+// const useStyles = makeStyles({
+//   tile: {
+//     backgroundColor: blueGrey["900"],
+//   },
+// });
 
 function Loader() {
   const { setupState, data } = useSetupContext();
-  const style = useStyles();
+  // const style = useStyles();
 
   if (
     setupState === "ready" &&
@@ -29,24 +30,7 @@ function Loader() {
       <>
         <pre>{data.generation.name}</pre>
         <pre>{data.pokedex.name}</pre>
-        <GridList cellHeight={80} cols={14}>
-          {data.pokemon.map((pokee) => (
-            /**
-             * Types of tile:
-             * - Not guessed
-             * - Miss
-             * - Your Ship
-             * - Hit Ship
-             */
-            <GridListTile
-              className={style.tile}
-              key={pokee.sprites.front_default}
-              cols={1}
-            >
-              <img src={pokee.sprites.front_default} alt={pokee.name} />
-            </GridListTile>
-          ))}
-        </GridList>
+        <Board columns={14} />
       </>
     );
   } else {
