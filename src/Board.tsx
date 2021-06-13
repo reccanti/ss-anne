@@ -11,11 +11,11 @@
  * There should be no game-logic in these components. How you manage that
  * is up to you.
  */
-import { ReactNode } from "react";
+import { ReactNode, SyntheticEvent } from "react";
 import { makeStyles } from "@material-ui/core";
 import { blueGrey, red, teal } from "@material-ui/core/colors";
 
-type CellVariant = "ship-hit" | "ship-unhit" | "miss" | "unknown";
+export type CellVariant = "ship-hit" | "ship-unhit" | "miss" | "unknown";
 
 interface CellStyleProps {
   variant: CellVariant;
@@ -49,17 +49,15 @@ const useCellStyles = makeStyles({
 
 interface CellProps {
   variant: CellVariant;
+  onClick?: (e: SyntheticEvent<HTMLLIElement>) => void;
+  children: ReactNode;
 }
 
-export function Cell({ variant }: CellProps) {
+export function Cell({ variant, onClick, children }: CellProps) {
   const styles = useCellStyles({ variant });
   return (
-    <li className={styles.root}>
-      <img
-        className={styles.image}
-        src="https://via.placeholder.com/75.png"
-        alt="uh"
-      />
+    <li className={styles.root} onClick={onClick}>
+      {children}
     </li>
   );
 }
@@ -75,20 +73,23 @@ const useBoardStyles = makeStyles({
       `repeat(${props.columns}, max-content)`,
     gridGap: "0.5rem",
     listStyle: "none",
+    padding: 0,
   },
 });
 
-interface BoardProps {
+interface BoardProps<DataType> {
   columns: number;
+  items: DataType[];
+  renderCell: (data: DataType) => ReactNode;
 }
 
-export function Board({ columns }: BoardProps) {
+export function Board<DataType extends object>({
+  columns,
+  items,
+  renderCell,
+}: BoardProps<DataType>) {
   const styles = useBoardStyles({ columns });
   return (
-    <ol className={styles.root}>
-      {Array.from({ length: 151 }).map(() => (
-        <Cell variant="ship-unhit" />
-      ))}
-    </ol>
+    <ol className={styles.root}>{items.map((item) => renderCell(item))}</ol>
   );
 }
