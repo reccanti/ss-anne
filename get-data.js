@@ -71,13 +71,61 @@ async function getAllPokemon() {
       }
     );
 
-    const filteredPokes = allThePokes.map((poke) => ({
-      name: poke.name,
-      pokedex_numbers: poke.pokedex_numbers,
-    }));
     const file = path.join(__dirname, "src", "data", "pokemon.json");
-    await writeToFile(file, filteredPokes);
+    await writeToFile(file, allThePokes);
   } catch (error) {
+    console.error("getAllPokemon");
+    console.error(error.message);
+  }
+}
+
+async function getAllGenerations() {
+  let allTheGens = [];
+  try {
+    await iterateBatch("https://pokeapi.co/api/v2/generation", async (json) => {
+      const genPromises = json.results.map((gen) => getJSON(gen.url));
+      const genBatch = await Promise.all(genPromises);
+      allTheGens = [...allTheGens, ...genBatch];
+    });
+    const file = path.join(__dirname, "src", "data", "generation.json");
+    await writeToFile(file, allTheGens);
+  } catch (error) {
+    console.error("getAllGenerations");
+    console.error(error.message);
+  }
+}
+
+async function getAllVersionGroups() {
+  let allTheGroups = [];
+  try {
+    await iterateBatch(
+      "https://pokeapi.co/api/v2/version-group",
+      async (json) => {
+        const groupPromises = json.results.map((group) => getJSON(group.url));
+        const groupBatch = await Promise.all(groupPromises);
+        allTheGroups = [...allTheGroups, ...groupBatch];
+      }
+    );
+    const file = path.join(__dirname, "src", "data", "group.json");
+    await writeToFile(file, allTheGroups);
+  } catch (error) {
+    console.error("getAllVersionGroups");
+    console.error(error.message);
+  }
+}
+
+async function getAllDexes() {
+  let allTheDexes = [];
+  try {
+    await iterateBatch("https://pokeapi.co/api/v2/pokedex", async (json) => {
+      const dexPromises = json.results.map((dex) => getJSON(dex.url));
+      const dexBatch = await Promise.all(dexPromises);
+      allTheDexes = [...allTheDexes, ...dexBatch];
+    });
+    const file = path.join(__dirname, "src", "data", "pokedex.json");
+    await writeToFile(file, allTheDexes);
+  } catch (error) {
+    console.error("getAllDexes");
     console.error(error.message);
   }
 }
@@ -85,6 +133,9 @@ async function getAllPokemon() {
 async function main() {
   try {
     await getAllPokemon();
+    await getAllGenerations();
+    await getAllVersionGroups();
+    await getAllDexes();
   } catch (error) {
     console.error(error.message);
   }
