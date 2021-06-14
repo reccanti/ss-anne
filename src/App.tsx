@@ -3,6 +3,7 @@ import { ReactNode, useState } from "react";
 import "./App.css";
 import { Board, Cell, CellVariant } from "./Board";
 import { useSetupContext, SetupProvider } from "./SetupManager";
+import { WebRTCWrapper } from "./WebRTCWrapper";
 
 interface CellProps {
   children: ReactNode;
@@ -54,11 +55,31 @@ function Loader() {
   }
 }
 
+/**
+ * Let's start thinking about the "App State". These will be the various
+ * different phases of using this application. Each phase could probably
+ * be considered a mini-application
+ *
+ * 1. Setup - This is where you set up the board, establishing the shape
+ * of the board and the order the pokemon appear in
+ *
+ * 2. Connection - Once the board is configured, we'll try to connect to
+ * another instance that we can pass that data along to. Maybe this could
+ * happen in the background of other phases?
+ *
+ * 3. Game - This probably consists of several sub-phases, such as ship
+ * placement and actual play
+ *
+ * 4. PostGame - After a player wins, what happens? Do we just return to
+ * the main phase or give people a chance to do another round?
+ */
 function App() {
   return (
-    <SetupProvider>
-      <Loader />
-    </SetupProvider>
+    <WebRTCWrapper>
+      <SetupProvider>
+        <Loader />
+      </SetupProvider>
+    </WebRTCWrapper>
   );
 }
 
