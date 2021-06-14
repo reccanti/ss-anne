@@ -15,12 +15,7 @@ import { ReactNode, SyntheticEvent } from "react";
 import { makeStyles } from "@material-ui/core";
 import { blueGrey, red, teal } from "@material-ui/core/colors";
 
-export type CellVariant =
-  | "ship-hit"
-  | "ship-unhit"
-  | "miss"
-  | "unknown"
-  | "pending";
+export type CellVariant = "ship-hit" | "ship-unhit" | "miss" | "unknown";
 
 interface CellStyleProps {
   variant: CellVariant;

@@ -17,6 +17,7 @@ interface WebRTCContext {
   addOnError: (cb: OnErrorCallback) => void;
   addOnData: (cb: OnDataCallback) => void;
   connect: (id: string) => void;
+  send: (data: any) => void;
   id: null | string;
 }
 
@@ -28,14 +29,8 @@ interface Props {
   children: ReactNode;
 }
 export function WebRTCProvider({ children }: Props) {
-  // const [peerConnectionID, setPeerConnectionID] = useState<string>("");
   const peer = useRef<null | PeerJS>(null);
-
-  // it's all our callbacks!
-  // const [openCbs, setOpenCbs] = useState<OnOpenCallback[]>([]);
-  // const [connectCbs, setConnectCbs] = useState<OnConnectCallback[]>([]);
-  // const [errorCbs, setErrorCbs] = useState<OnErrorCallback[]>([]);
-  // const [dataCbs, setDataCbs] = useState<OnDataCallback[]>([]);
+  const dataConn = useRef<null | PeerJS.DataConnection>(null);
 
   const openCbs = new Set<OnOpenCallback>();
   const dataCbs = new Set<OnDataCallback>();
@@ -71,6 +66,7 @@ export function WebRTCProvider({ children }: Props) {
           onData(data);
         });
       });
+      dataConn.current = dataConnection;
     });
     p.on("error", (err) => {
       errorCbs.forEach((onError) => {
@@ -88,7 +84,11 @@ export function WebRTCProvider({ children }: Props) {
   };
 
   // send data to a peerjs connection
-  const send = (data: any) => {};
+  const send = (data: any) => {
+    if (dataConn.current) {
+      dataConn.current.send(data);
+    }
+  };
 
   const value = {
     addOnOpen,
@@ -97,6 +97,7 @@ export function WebRTCProvider({ children }: Props) {
     addOnError,
     connect,
     id,
+    send,
   };
 
   return <Provider value={value}>{children}</Provider>;
