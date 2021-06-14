@@ -4,27 +4,52 @@
  */
 import { ReactNode, useEffect, useRef, useState } from "react";
 import PeerJS from "peerjs";
-import { TextField, Button } from "@material-ui/core";
+import { createCtx } from "./utils/createCtx";
+
+type OnOpenCallback = (id: string) => void;
+type OnConnectCallback = (dataConnection: PeerJS.DataConnection) => void;
+type OnErrorCallback = (err: Error) => void;
+type OnDataCallback = (data: any) => void;
+
+interface WebRTCContext {
+  addOnOpen: (cb: OnOpenCallback) => void;
+  addOnConnect: (cb: OnConnectCallback) => void;
+  addOnError: (cb: OnErrorCallback) => void;
+  addOnData: (cb: OnDataCallback) => void;
+  connect: (id: string) => void;
+  id: null | string;
+}
+
+const [useCtx, Provider] = createCtx<WebRTCContext>();
+
+export const useWebRTCCtx = useCtx;
 
 interface Props {
   children: ReactNode;
-  onOpen: (id: string) => void;
-  onConnect: (dataConnection: PeerJS.DataConnection) => void;
-  onError: (err: Error) => void;
-  onData: (data: any) => void;
 }
-
-const noop = () => {};
-
-export function WebRTCWrapper({
-  children,
-  onOpen,
-  onConnect,
-  onError,
-  onData,
-}: Props) {
-  const [peerConnectionID, setPeerConnectionID] = useState<string>("");
+export function WebRTCProvider({ children }: Props) {
+  // const [peerConnectionID, setPeerConnectionID] = useState<string>("");
   const peer = useRef<null | PeerJS>(null);
+
+  // it's all our callbacks!
+  // const [openCbs, setOpenCbs] = useState<OnOpenCallback[]>([]);
+  // const [connectCbs, setConnectCbs] = useState<OnConnectCallback[]>([]);
+  // const [errorCbs, setErrorCbs] = useState<OnErrorCallback[]>([]);
+  // const [dataCbs, setDataCbs] = useState<OnDataCallback[]>([]);
+
+  const openCbs = new Set<OnOpenCallback>();
+  const dataCbs = new Set<OnDataCallback>();
+  const errorCbs = new Set<OnErrorCallback>();
+  const connectCbs = new Set<OnConnectCallback>();
+
+  // functions to add to our callback arrays
+  const addOnOpen = (cb: OnOpenCallback) => openCbs.add(cb);
+  const addOnData = (cb: OnDataCallback) => dataCbs.add(cb);
+  const addOnConnect = (cb: OnConnectCallback) => connectCbs.add(cb);
+  const addOnError = (cb: OnErrorCallback) => errorCbs.add(cb);
+
+  // keep track of the ID
+  const [id, setId] = useState<null | string>(null);
 
   // here we establish a peerjs connection. Our goal here
   // is to "flatten" some of the complexities so we can
@@ -32,43 +57,47 @@ export function WebRTCWrapper({
   useEffect(() => {
     const p = new PeerJS();
     p.on("open", (id) => {
-      onOpen(id);
+      setId(id);
+      openCbs.forEach((onOpen) => {
+        onOpen(id);
+      });
     });
     p.on("connection", (dataConnection) => {
-      onConnect(dataConnection);
+      connectCbs.forEach((onConnect) => {
+        onConnect(dataConnection);
+      });
       dataConnection.on("data", (data) => {
-        onData(data);
+        dataCbs.forEach((onData) => {
+          onData(data);
+        });
       });
     });
     p.on("error", (err) => {
-      onError(err);
+      errorCbs.forEach((onError) => {
+        onError(err);
+      });
     });
     peer.current = p;
   }, []);
 
-  const handleInputChange = (e: any) => {
-    const val = e.target.value;
-    setPeerConnectionID(val);
-  };
-
-  const connectToPeer = () => {
+  // connect to another peer using PeerJS
+  const connect = (id: string) => {
     if (peer.current) {
-      peer.current.connect(peerConnectionID);
+      peer.current.connect(id);
     }
   };
 
-  return (
-    <>
-      <TextField label="PeerJS connection ID" onChange={handleInputChange} />
-      <Button onClick={connectToPeer}>Connect to that bad boy</Button>
-      {children}
-    </>
-  );
-}
+  // send data to a peerjs connection
+  const send = (data: any) => {};
 
-WebRTCWrapper.defaultProps = {
-  onConnect: noop,
-  onError: noop,
-  onData: noop,
-  onOpen: noop,
-} as Partial<Props>;
+  const value = {
+    addOnOpen,
+    addOnData,
+    addOnConnect,
+    addOnError,
+    connect,
+    id,
+  };
+
+  return <Provider value={value}>{children}</Provider>;
+}

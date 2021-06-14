@@ -1,9 +1,10 @@
-import { CircularProgress } from "@material-ui/core";
-import { ReactNode, useState } from "react";
-import "./App.css";
+import { ReactNode, useEffect, useState } from "react";
+import { CircularProgress, TextField, Box, Button } from "@material-ui/core";
 import { Board, Cell, CellVariant } from "./Board";
 import { useSetupContext, SetupProvider } from "./SetupManager";
-import { WebRTCWrapper } from "./WebRTCWrapper";
+import { WebRTCProvider, useWebRTCCtx } from "./WebRTCWrapper";
+
+import "./App.css";
 
 interface CellProps {
   children: ReactNode;
@@ -55,6 +56,33 @@ function Loader() {
   }
 }
 
+function Connector() {
+  const { connect, addOnConnect, id } = useWebRTCCtx();
+  const [peer, setPeer] = useState<string>("");
+
+  useEffect(() => {
+    addOnConnect((connection) => {
+      console.log(connection);
+    });
+  }, []);
+
+  const handleChange = (e: any) => {
+    setPeer(e.target.value);
+  };
+
+  const handleClick = () => {
+    connect(peer);
+  };
+
+  return (
+    <>
+      <Box>{id}</Box>
+      <TextField onChange={handleChange} label="Set Other ID" />
+      <Button onClick={handleClick}>Connect!!!</Button>
+    </>
+  );
+}
+
 /**
  * Let's start thinking about the "App State". These will be the various
  * different phases of using this application. Each phase could probably
@@ -75,11 +103,12 @@ function Loader() {
  */
 function App() {
   return (
-    <WebRTCWrapper>
+    <WebRTCProvider>
       <SetupProvider>
+        <Connector />
         <Loader />
       </SetupProvider>
-    </WebRTCWrapper>
+    </WebRTCProvider>
   );
 }
 
