@@ -64,7 +64,7 @@ function Connector() {
     addOnConnect((connection) => {
       console.log(connection);
     });
-  }, []);
+  }, [addOnConnect]);
 
   const handleChange = (e: any) => {
     setPeer(e.target.value);
