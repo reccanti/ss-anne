@@ -47,5 +47,6 @@
   "devDependencies": {
     "customize-cra": "^1.0.0",
     "react-app-rewired": "^2.1.8"
-  }
+  },
+  "homepage": "reccanti.github.io/ss-anne"
 }
