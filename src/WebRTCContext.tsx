@@ -2,7 +2,7 @@
  * In this file, we'll handle all the things for connecting
  * and sending data using webrtc
  */
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState, useMemo } from "react";
 import PeerJS from "peerjs";
 import { createCtx } from "./utils/createCtx";
 
@@ -32,10 +32,10 @@ export function WebRTCProvider({ children }: Props) {
   const peer = useRef<null | PeerJS>(null);
   const dataConn = useRef<null | PeerJS.DataConnection>(null);
 
-  const openCbs = new Set<OnOpenCallback>();
-  const dataCbs = new Set<OnDataCallback>();
-  const errorCbs = new Set<OnErrorCallback>();
-  const connectCbs = new Set<OnConnectCallback>();
+  const openCbs = useMemo(() => new Set<OnOpenCallback>(), []);
+  const dataCbs = useMemo(() => new Set<OnDataCallback>(), []);
+  const errorCbs = useMemo(() => new Set<OnErrorCallback>(), []);
+  const connectCbs = useMemo(() => new Set<OnConnectCallback>(), []);
 
   // functions to add to our callback arrays
   const addOnOpen = (cb: OnOpenCallback) => openCbs.add(cb);
@@ -74,7 +74,7 @@ export function WebRTCProvider({ children }: Props) {
       });
     });
     peer.current = p;
-  }, []);
+  }, [openCbs, connectCbs, errorCbs, dataCbs]);
 
   // connect to another peer using PeerJS
   const connect = (id: string) => {
