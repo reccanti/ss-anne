@@ -1,6 +1,7 @@
 import { useState, ReactNode, useEffect } from "react";
 import PokeAPI, { IPokedex, IGeneration, IPokemon } from "pokeapi-typescript";
 import { createCtx } from "./utils/createCtx";
+import { fetchPokemonByGeneration } from "./utils/pokeFuncs";
 
 type SetupState = "loading" | "ready";
 
@@ -54,7 +55,7 @@ export function SetupProvider({ children }: Props) {
   useEffect(() => {
     const fetchAllData = async () => {
       // fetch all the meta information
-      const genPromise = PokeAPI.Generaition.resolve("generation-i");
+      const genPromise = PokeAPI.Generaition.resolve(2);
       const dexPromise = PokeAPI.Pokedex.resolve("national");
       const [generation, pokedex] = await Promise.all([genPromise, dexPromise]);
       setPokedex(pokedex);
@@ -66,10 +67,12 @@ export function SetupProvider({ children }: Props) {
         pokeOrderMap.set(entry.pokemon_species.name, entry.entry_number);
       });
 
-      const pokePromises = generation.pokemon_species.map((poke) =>
-        PokeAPI.Pokemon.resolve(poke.name)
-      );
-      const pokees = await Promise.all(pokePromises);
+      const pokees = await fetchPokemonByGeneration(2);
+
+      // const pokePromises = generation.pokemon_species.map((poke) =>
+      //   PokeAPI.Pokemon.resolve(poke.name)
+      // );
+      // const pokees = await Promise.all(pokePromises);
       pokees.sort((a, b) => {
         const aIndex = pokeOrderMap.get(a.name);
         const bIndex = pokeOrderMap.get(b.name);

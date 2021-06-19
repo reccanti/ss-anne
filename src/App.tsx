@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { CircularProgress, TextField, Box, Button } from "@material-ui/core";
 import { Board, Cell, CellVariant } from "./Board";
 import { useSetupContext, SetupProvider } from "./SetupManager";
-import { WebRTCProvider, useWebRTCCtx } from "./WebRTCWrapper";
+import { WebRTCProvider, useWebRTCCtx } from "./WebRTCContext";
 
 import "./App.css";
 

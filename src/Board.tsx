@@ -24,7 +24,7 @@ interface CellStyleProps {
 const useCellStyles = makeStyles({
   root: {
     display: "block",
-    padding: "0.5rem",
+    // padding: "0.5rem",
     background: (props: CellStyleProps) => {
       switch (props.variant) {
         case "ship-unhit": {
@@ -71,7 +71,7 @@ const useBoardStyles = makeStyles({
     display: "grid",
     gridTemplateColumns: (props: BoardStyleProps) =>
       `repeat(${props.columns}, max-content)`,
-    gridGap: "0.5rem",
+    // gridGap: "0.5rem",
     listStyle: "none",
     padding: 0,
   },
