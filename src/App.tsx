@@ -4,7 +4,11 @@ import { Board, Cell, CellVariant } from "./Board";
 import { useSetupContext, SetupProvider } from "./SetupManager";
 import { WebRTCProvider, useWebRTCCtx } from "./WebRTCContext";
 
+import { AllTheFuckingStateProvider } from "./AllTheFuckingState";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+
 import "./App.css";
+import { LandingPage } from "./LandingPage";
 
 interface CellProps {
   children: ReactNode;
@@ -103,12 +107,21 @@ function Connector() {
  */
 function App() {
   return (
-    <WebRTCProvider>
-      <SetupProvider>
-        <Connector />
-        <Loader />
-      </SetupProvider>
-    </WebRTCProvider>
+    // <WebRTCProvider>
+    //   <SetupProvider>
+    //     <Connector />
+    //     <Loader />
+    //   </SetupProvider>
+    // </WebRTCProvider>
+    <AllTheFuckingStateProvider>
+      <Router>
+        <Switch>
+          <Route exact path="/">
+            <LandingPage />
+          </Route>
+        </Switch>
+      </Router>
+    </AllTheFuckingStateProvider>
   );
 }
 
