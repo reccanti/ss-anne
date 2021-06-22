@@ -1,92 +1,9 @@
-import { ReactNode, useEffect, useState } from "react";
-import { CircularProgress, TextField, Box, Button } from "@material-ui/core";
-import { Board, Cell, CellVariant } from "./Board";
-import { useSetupContext, SetupProvider } from "./SetupManager";
-import { WebRTCProvider, useWebRTCCtx } from "./WebRTCContext";
-
 import { AllTheFuckingStateProvider } from "./AllTheFuckingState";
 import { PokeGetterProvider } from "./PokeGetterContext";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 import "./App.css";
 import { LandingPage } from "./LandingPage";
-
-interface CellProps {
-  children: ReactNode;
-}
-
-function StatefulCell({ children }: CellProps) {
-  const [clicks, setClicks] = useState<number>(0);
-  const handleClick = () => {
-    console.log(clicks);
-    const next = (clicks + 1) % 4;
-    setClicks(next);
-  };
-  const variants: CellVariant[] = ["unknown", "miss", "ship-unhit", "ship-hit"];
-  return (
-    <Cell onClick={handleClick} variant={variants[clicks]}>
-      {children}
-    </Cell>
-  );
-}
-
-function Loader() {
-  const { setupState, data } = useSetupContext();
-  // const style = useStyles();
-
-  if (
-    setupState === "ready" &&
-    data &&
-    "pokedex" in data &&
-    "generation" in data &&
-    "pokemon" in data
-  ) {
-    return (
-      <>
-        <pre>{data.generation.name}</pre>
-        <pre>{data.pokedex.name}</pre>
-        <Board
-          columns={14}
-          items={data.pokemon}
-          renderCell={(pokee) => (
-            <StatefulCell key={pokee.name}>
-              <img src={pokee.sprites.front_default} alt={pokee.name} />
-            </StatefulCell>
-          )}
-        />
-      </>
-    );
-  } else {
-    return <CircularProgress />;
-  }
-}
-
-function Connector() {
-  const { connect, addOnConnect, id } = useWebRTCCtx();
-  const [peer, setPeer] = useState<string>("");
-
-  useEffect(() => {
-    addOnConnect((connection) => {
-      console.log(connection);
-    });
-  }, [addOnConnect]);
-
-  const handleChange = (e: any) => {
-    setPeer(e.target.value);
-  };
-
-  const handleClick = () => {
-    connect(peer);
-  };
-
-  return (
-    <>
-      <Box>{id}</Box>
-      <TextField onChange={handleChange} label="Set Other ID" />
-      <Button onClick={handleClick}>Connect!!!</Button>
-    </>
-  );
-}
 
 /**
  * Let's start thinking about the "App State". These will be the various
