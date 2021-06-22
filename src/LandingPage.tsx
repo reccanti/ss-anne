@@ -139,7 +139,7 @@ function BoardSetup() {
       dispatch({ type: "setBoardPokemon", payload: pokes });
     };
     fetch();
-  }, [getter, state.board.generation]);
+  }, [getter, dispatch, state.board.generation]);
 
   return (
     <Grid container>

@@ -4,7 +4,6 @@
  */
 
 import { Select, FormControl, InputLabel, MenuItem } from "@material-ui/core";
-import { ChangeEvent } from "react";
 
 interface Props<DataType> {
   // these are all things that will be passed to the UI elements
