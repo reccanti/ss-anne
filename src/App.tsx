@@ -5,6 +5,7 @@ import { useSetupContext, SetupProvider } from "./SetupManager";
 import { WebRTCProvider, useWebRTCCtx } from "./WebRTCContext";
 
 import { AllTheFuckingStateProvider } from "./AllTheFuckingState";
+import { PokeGetterProvider } from "./PokeGetterContext";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 import "./App.css";
@@ -114,13 +115,15 @@ function App() {
     //   </SetupProvider>
     // </WebRTCProvider>
     <AllTheFuckingStateProvider>
-      <Router>
-        <Switch>
-          <Route exact path="/">
-            <LandingPage />
-          </Route>
-        </Switch>
-      </Router>
+      <PokeGetterProvider lang="en">
+        <Router>
+          <Switch>
+            <Route exact path="/">
+              <LandingPage />
+            </Route>
+          </Switch>
+        </Router>
+      </PokeGetterProvider>
     </AllTheFuckingStateProvider>
   );
 }

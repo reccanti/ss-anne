@@ -11,11 +11,31 @@ import {
   TextField,
   Button,
   makeStyles,
+  Drawer,
+  FormControl,
+  Input,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@material-ui/core";
-import { useContext, useState, ChangeEvent, FormEvent } from "react";
+import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
+import { PokeGetterContext } from "./PokeGetterContext";
+import { PokeGeneration } from "./utils/pokeGetter";
+import { BetterSelect } from "./utils/BetterSelect";
 
-const useStyles = makeStyles({
+/**
+ * This is a sub-page of the landing page. Here, we ask the user to
+ * select a username before either creating their board or joining
+ * someone at a particular instance.
+ *
+ * @TODO - right now, we only allow the user to create a new board.
+ * Users will be able to join directly using a URL provided by the
+ * other player once their board is created.
+ *
+ * ~reccanti 6/20/2021
+ */
+const useCreateStyles = makeStyles({
   root: {
     padding: "1rem",
     margin: "1rem",
@@ -29,8 +49,8 @@ interface FormState {
   name: string;
 }
 
-function CreateGame() {
-  const styles = useStyles();
+function CreateUser() {
+  const styles = useCreateStyles();
   const { dispatch } = useContext(AllTheFuckingStateCtx);
   const [state, setState] = useState<FormState>({ name: "" });
 
@@ -44,6 +64,10 @@ function CreateGame() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     dispatch({ type: "setPlayer", payload: { name: state.name } });
+    dispatch({
+      type: "setBoardName",
+      payload: { name: `${state.name}'s board` },
+    });
   };
 
   return (
@@ -65,10 +89,74 @@ function CreateGame() {
   );
 }
 
+/**
+ * This is where we'll set up the board for an upcoming game
+ */
+
+const useBoardStyles = makeStyles({
+  root: {
+    padding: "1rem",
+    maxWidth: "350px",
+    "& > *:not(:first-child)": {
+      marginTop: "1rem",
+    },
+  },
+});
+
+function BoardSetup() {
+  const [gens, setGens] = useState<PokeGeneration[]>([]);
+
+  const { state, dispatch } = useContext(AllTheFuckingStateCtx);
+  const getter = useContext(PokeGetterContext);
+
+  const styles = useBoardStyles();
+
+  const handleGenChange = (gen: PokeGeneration) => {
+    dispatch({ type: "setBoardGeneration", payload: gen });
+  };
+
+  useEffect(() => {
+    const fetch = async () => {
+      const gens = await getter.getAllGenerations();
+      setGens(gens);
+    };
+    fetch();
+  }, [getter]);
+
+  return (
+    <div>
+      <Drawer variant="permanent">
+        <form className={styles.root}>
+          <TextField fullWidth label="Board Name" value={state.board.name} />
+          <FormControl fullWidth>
+            <InputLabel htmlFor="column-input">Columns</InputLabel>
+            <Input
+              id="column-input"
+              type="number"
+              value={state.board.columns}
+            />
+          </FormControl>
+          <BetterSelect
+            id="gen-select"
+            label="Generation"
+            fullWidth
+            data={gens}
+            value={state.board.generation}
+            getDisplayValue={(d) => d.name}
+            getKeyValue={(d) => d.name}
+            getValue={(d) => d.id}
+            onChange={handleGenChange}
+          />
+        </form>
+      </Drawer>
+    </div>
+  );
+}
+
 export function LandingPage() {
   const { state } = useContext(AllTheFuckingStateCtx);
   if (state.users.player) {
-    return <pre>{state.users.player.name}'s board</pre>;
+    return <BoardSetup />;
   }
-  return <CreateGame />;
+  return <CreateUser />;
 }

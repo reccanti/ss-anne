@@ -8,11 +8,18 @@
  * ~reccanti 6/19/2021
  */
 import { createContext, ReactNode, useReducer } from "react";
+import { PokeGeneration } from "./utils/pokeGetter";
 
 // various types for interacting with state
 
 interface User {
   name: string;
+}
+
+interface BoardConfig {
+  name: string;
+  columns: number;
+  generation: PokeGeneration;
 }
 
 // compose all our types into a state blob. Create the reducer
@@ -23,12 +30,21 @@ interface FuckingState {
     player: User | null;
     opponent: User | null;
   };
+  board: BoardConfig;
 }
 
 const initialState: FuckingState = {
   users: {
     player: null,
     opponent: null,
+  },
+  board: {
+    name: "",
+    columns: 15,
+    generation: {
+      id: 1,
+      name: "Generation I",
+    },
   },
 };
 
@@ -43,7 +59,26 @@ interface SetPlayer extends BaseAction {
   };
 }
 
-type Action = SetPlayer;
+interface SetBoardName extends BaseAction {
+  type: "setBoardName";
+  payload: {
+    name: string;
+  };
+}
+
+interface SetBoardColumns extends BaseAction {
+  type: "setBoardColumns";
+  payload: {
+    columns: number;
+  };
+}
+
+interface SetBoardGeneration extends BaseAction {
+  type: "setBoardGeneration";
+  payload: PokeGeneration;
+}
+
+type Action = SetPlayer | SetBoardName | SetBoardColumns | SetBoardGeneration;
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
@@ -54,6 +89,35 @@ function reducer(state: FuckingState, action: Action): FuckingState {
           ...state.users,
           player: {
             name: action.payload.name,
+          },
+        },
+      };
+    }
+    case "setBoardColumns": {
+      return {
+        ...state,
+        board: {
+          ...state.board,
+          columns: action.payload.columns,
+        },
+      };
+    }
+    case "setBoardName": {
+      return {
+        ...state,
+        board: {
+          ...state.board,
+          name: action.payload.name,
+        },
+      };
+    }
+    case "setBoardGeneration": {
+      return {
+        ...state,
+        board: {
+          ...state.board,
+          generation: {
+            ...action.payload,
           },
         },
       };
