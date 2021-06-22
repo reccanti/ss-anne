@@ -33,7 +33,7 @@ function App() {
     // </WebRTCProvider>
     <AllTheFuckingStateProvider>
       <PokeGetterProvider lang="en">
-        <Router>
+        <Router basename="/ss-anne">
           <Switch>
             <Route exact path="/">
               <LandingPage />
