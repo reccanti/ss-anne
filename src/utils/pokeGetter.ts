@@ -10,6 +10,7 @@
  * swapping out the data source
  */
 import PokeAPI, { IPokemon, IPokemonSpecies } from "pokeapi-typescript";
+import { PromiseAllSettledChunk } from "./PromiseAllChunk";
 
 export type Language =
   | "ja-Hrkt"
@@ -92,24 +93,27 @@ export async function getPokemonByGeneration(
       pokePromises.push(pps);
     });
   });
-  const pokes = await Promise.all(pokePromises);
+  const pokes = await PromiseAllSettledChunk(pokePromises, 100);
 
   // format this data into the Pokemon type
   const pokemon: Pokemon[] = [];
-  pokes.forEach(([poke, species]) => {
-    // const name = poke.name;
-    const nameResource = species.names.find(
-      (name) => name.language.name === lang
-    );
-    if (nameResource) {
-      const name = nameResource.name;
-      const id = poke.id;
-      const artworkUrl = poke.sprites.front_default;
-      pokemon.push({
-        name,
-        id,
-        artworkUrl,
-      });
+  pokes.forEach((res) => {
+    if (res.status === "fulfilled") {
+      const [poke, species] = res.value;
+      // const name = poke.name;
+      const nameResource = species.names.find(
+        (name) => name.language.name === lang
+      );
+      if (nameResource) {
+        const name = nameResource.name;
+        const id = poke.id;
+        const artworkUrl = poke.sprites.front_default;
+        pokemon.push({
+          name,
+          id,
+          artworkUrl,
+        });
+      }
     }
   });
 

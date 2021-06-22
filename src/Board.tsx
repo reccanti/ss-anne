@@ -12,7 +12,7 @@
  * is up to you.
  */
 import { ReactNode, SyntheticEvent } from "react";
-import { makeStyles } from "@material-ui/core";
+import { makeStyles, Box } from "@material-ui/core";
 import { blueGrey, red, teal } from "@material-ui/core/colors";
 
 export type CellVariant = "ship-hit" | "ship-unhit" | "miss" | "unknown";
@@ -92,4 +92,26 @@ export function Board<DataType extends object>({
   return (
     <ol className={styles.root}>{items.map((item) => renderCell(item))}</ol>
   );
+}
+
+interface BoardContainerStyleProps {
+  height?: number | string;
+  width?: number | string;
+}
+
+const useBoardContainerStyles = makeStyles({
+  root: (props: BoardContainerStyleProps) => ({
+    width: props.width ?? "100%",
+    height: props.height ?? "100vh",
+    overflow: "scroll",
+  }),
+});
+
+interface BoardContainerProps {
+  children: ReactNode;
+}
+
+export function BoardContainer({ children }: BoardContainerProps) {
+  const styles = useBoardContainerStyles({});
+  return <Box className={styles.root}>{children}</Box>;
 }

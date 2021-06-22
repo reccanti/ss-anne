@@ -11,7 +11,6 @@ import {
   TextField,
   Button,
   makeStyles,
-  Drawer,
   FormControl,
   Input,
   InputLabel,
@@ -22,7 +21,7 @@ import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { PokeGetterContext } from "./PokeGetterContext";
 import { PokeGeneration } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
-import { Board, Cell } from "./Board";
+import { BoardContainer, Board, Cell } from "./Board";
 
 /**
  * This is a sub-page of the landing page. Here, we ask the user to
@@ -175,15 +174,17 @@ function BoardSetup() {
         </Paper>
       </Grid>
       <Grid container item xs={10}>
-        <Board
-          columns={state.board.columns}
-          items={state.board.pokemon}
-          renderCell={(item) => (
-            <Cell key={item.name} variant="unknown">
-              <img src={item.artworkUrl} alt={item.name} />
-            </Cell>
-          )}
-        />
+        <BoardContainer>
+          <Board
+            columns={state.board.columns}
+            items={state.board.pokemon}
+            renderCell={(item) => (
+              <Cell key={item.name} variant="unknown">
+                <img src={item.artworkUrl} alt={item.name} />
+              </Cell>
+            )}
+          />
+        </BoardContainer>
       </Grid>
     </Grid>
   );
