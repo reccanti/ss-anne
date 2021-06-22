@@ -68,8 +68,52 @@ async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
 
 /**
  * Get info on all the pokemon available in each generation
+ *
+ * @TODO - This logic is incomplete and probably bad. I think this
+ * is the flow I'd like to encourage:
+ *
+ * 1. Select the game you're playing
+ * 2. Use that to find the version group
+ * 3. Use that to find the generation
+ * 4. Find all the pokemon-species in that generation
+ * 5. Get the names of all the varieties of that species
+ * 6. Look up all those varieties
+ *
+ * This is kind of unmanegeable in it's current form. I think
+ * what I'd like to do is create a "Cache" layer that will look
+ * something like this:
+ *
+ * {
+ *   pokemon: {...},
+ *   games: {...}
+ * }
+ *
+ * The cache will work like this:
+ *
+ * ```
+ * Cache.get("pokemon").get("crobat")
+ * ```
+ *
+ * or
+ *
+ * ```
+ * Cache.get("games").get("pokemon")
+ * ```
+ *
+ * It will work like this:
+ *
+ * 1. Does that request exist as a memoized value in the cache?
+ *    If so, return that
+ * 2. Does the entry exist in the cache? If so, lookup the value
+ *    and return that
+ * 3. Otherwise, make a request to the PokeAPI, store the value
+ *    in localstorage, and then return the result
+ *
+ * Maybe multiple Caches for each type would be easier to implement
+ * and manage?
+ *
+ * ~reccanti 6/22/21
  */
-
 export async function getPokemonByGeneration(
   lang: Language,
   generationId: number
