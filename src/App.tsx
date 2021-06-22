@@ -33,6 +33,14 @@ function App() {
     // </WebRTCProvider>
     <AllTheFuckingStateProvider>
       <PokeGetterProvider lang="en">
+        {/**
+         * @TODO - instead of hard-coding this, it might be better
+         * to do some fancy logic to determine what the base-url
+         * actually is. This way, localhost:3000/ and reccanti.github.io/ss-anne
+         * would both work
+         *
+         * ~reccanti 6/22/2021
+         */}
         <Router basename="/ss-anne">
           <Switch>
             <Route exact path="/">
