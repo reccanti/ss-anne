@@ -15,14 +15,14 @@ import {
   FormControl,
   Input,
   InputLabel,
-  Select,
-  MenuItem,
+  Grid,
 } from "@material-ui/core";
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { PokeGetterContext } from "./PokeGetterContext";
 import { PokeGeneration } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
+import { Board, Cell } from "./Board";
 
 /**
  * This is a sub-page of the landing page. Here, we ask the user to
@@ -97,6 +97,7 @@ const useBoardStyles = makeStyles({
   root: {
     padding: "1rem",
     maxWidth: "350px",
+    margin: "1rem",
     "& > *:not(:first-child)": {
       marginTop: "1rem",
     },
@@ -111,6 +112,16 @@ function BoardSetup() {
 
   const styles = useBoardStyles();
 
+  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const name = event.target.value;
+    dispatch({ type: "setBoardName", payload: { name } });
+  };
+
+  const handleColumnChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const columns = Number(event.target.value);
+    dispatch({ type: "setBoardColumns", payload: { columns } });
+  };
+
   const handleGenChange = (gen: PokeGeneration) => {
     dispatch({ type: "setBoardGeneration", payload: gen });
   };
@@ -123,16 +134,30 @@ function BoardSetup() {
     fetch();
   }, [getter]);
 
+  useEffect(() => {
+    const fetch = async () => {
+      const pokes = await getter.getPokemonByGeneration(state.board.generation);
+      dispatch({ type: "setBoardPokemon", payload: pokes });
+    };
+    fetch();
+  }, [getter, state.board.generation]);
+
   return (
-    <div>
-      <Drawer variant="permanent">
-        <form className={styles.root}>
-          <TextField fullWidth label="Board Name" value={state.board.name} />
+    <Grid container>
+      <Grid container item xs={2}>
+        <Paper component="form" className={styles.root}>
+          <TextField
+            fullWidth
+            label="Board Name"
+            onChange={handleNameChange}
+            value={state.board.name}
+          />
           <FormControl fullWidth>
             <InputLabel htmlFor="column-input">Columns</InputLabel>
             <Input
               id="column-input"
               type="number"
+              onChange={handleColumnChange}
               value={state.board.columns}
             />
           </FormControl>
@@ -147,9 +172,20 @@ function BoardSetup() {
             getValue={(d) => d.id}
             onChange={handleGenChange}
           />
-        </form>
-      </Drawer>
-    </div>
+        </Paper>
+      </Grid>
+      <Grid container item xs={10}>
+        <Board
+          columns={state.board.columns}
+          items={state.board.pokemon}
+          renderCell={(item) => (
+            <Cell key={item.name} variant="unknown">
+              <img src={item.artworkUrl} alt={item.name} />
+            </Cell>
+          )}
+        />
+      </Grid>
+    </Grid>
   );
 }
 

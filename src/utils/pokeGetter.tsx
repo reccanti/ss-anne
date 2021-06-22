@@ -9,7 +9,7 @@
  * By having this Getter, we can preserve the API our app uses while
  * swapping out the data source
  */
-import PokeAPI from "pokeapi-typescript";
+import PokeAPI, { IPokemon, IPokemonSpecies } from "pokeapi-typescript";
 
 export type Language =
   | "ja-Hrkt"
@@ -26,11 +26,20 @@ export type Language =
   | "zh-Hans"
   | "pt-BR";
 
+export interface Pokemon {
+  name: string;
+  id: number;
+  artworkUrl: string;
+}
+
 export interface PokeGeneration {
   name: string;
   id: number;
 }
 
+/**
+ * Fetch all the Pokemon generations
+ */
 async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
   // list out all the generations
   const genList = await PokeAPI.Generaition.listAll();
@@ -56,6 +65,57 @@ async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
   return gens;
 }
 
+/**
+ * Get info on all the pokemon available in each generation
+ */
+
+export async function getPokemonByGeneration(
+  lang: Language,
+  generationId: number
+): Promise<Pokemon[]> {
+  // based on the generation, cycle backward to get all the pokemon
+  let currentGen = generationId;
+  const genPromises: ReturnType<typeof PokeAPI.Generaition.resolve>[] = [];
+  while (currentGen > 0) {
+    genPromises.push(PokeAPI.Generaition.resolve(currentGen));
+    currentGen--;
+  }
+  const gens = await Promise.all(genPromises);
+
+  // get the basic list of pokemon introduced in each generation
+  const pokePromises: Promise<[IPokemon, IPokemonSpecies]>[] = [];
+  gens.forEach((gen) => {
+    gen.pokemon_species.forEach((poke) => {
+      const p = PokeAPI.Pokemon.resolve(poke.name);
+      const ps = PokeAPI.PokemonSpecies.resolve(poke.name);
+      const pps = Promise.all([p, ps]);
+      pokePromises.push(pps);
+    });
+  });
+  const pokes = await Promise.all(pokePromises);
+
+  // format this data into the Pokemon type
+  const pokemon: Pokemon[] = [];
+  pokes.forEach(([poke, species]) => {
+    // const name = poke.name;
+    const nameResource = species.names.find(
+      (name) => name.language.name === lang
+    );
+    if (nameResource) {
+      const name = nameResource.name;
+      const id = poke.id;
+      const artworkUrl = poke.sprites.front_default;
+      pokemon.push({
+        name,
+        id,
+        artworkUrl,
+      });
+    }
+  });
+
+  return pokemon;
+}
+
 interface Options {
   lang: Language;
 }
@@ -69,5 +129,9 @@ export class PokeGetter {
 
   async getAllGenerations(): Promise<PokeGeneration[]> {
     return await getAllGenerations(this.language);
+  }
+
+  async getPokemonByGeneration(generation: PokeGeneration) {
+    return await getPokemonByGeneration(this.language, generation.id);
   }
 }
