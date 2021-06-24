@@ -9,11 +9,7 @@
  * By having this Getter, we can preserve the API our app uses while
  * swapping out the data source
  */
-import PokeAPI, {
-  IPokemon,
-  IPokemonSpecies,
-  IPokemonSpeciesVariety,
-} from "pokeapi-typescript";
+import PokeAPI, { IPokemonSpeciesVariety } from "pokeapi-typescript";
 import { CoolCache } from "./CoolCache";
 import { PromiseAllSettledChunk } from "./PromiseAllChunk";
 
