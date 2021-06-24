@@ -1,6 +1,11 @@
 /**
  * I just want to use objects for Select values. Is that so
  * much to ask for???
+ *
+ * @METEORCITY_CANDIDATE
+ * - Need to make this entirely hook-based, so it isn't dependent on
+ *   any particular UI theme
+ * - Probably need to figure out that change event type
  */
 
 import { Select, FormControl, InputLabel, MenuItem } from "@material-ui/core";

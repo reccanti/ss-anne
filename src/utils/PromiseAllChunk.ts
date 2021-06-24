@@ -1,6 +1,9 @@
 /**
  * A drop-in replacement for Promise.all, except you can specify a chunk size.
  * This way, you can chunk your requests so that you don't overwhelm the API.
+ *
+ * @METEORCITY_CANDIDATE
+ * - maybe make "options" instead of passing the chunksize as a full parameter
  */
 export async function PromiseAllSettledChunk<T>(
   ps: Promise<T>[],

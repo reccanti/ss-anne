@@ -9,7 +9,12 @@
  * By having this Getter, we can preserve the API our app uses while
  * swapping out the data source
  */
-import PokeAPI, { IPokemon, IPokemonSpecies } from "pokeapi-typescript";
+import PokeAPI, {
+  IPokemon,
+  IPokemonSpecies,
+  IPokemonSpeciesVariety,
+} from "pokeapi-typescript";
+import { CoolCache } from "./CoolCache";
 import { PromiseAllSettledChunk } from "./PromiseAllChunk";
 
 export type Language =
@@ -28,15 +33,38 @@ export type Language =
   | "pt-BR";
 
 export interface Pokemon {
-  name: string;
   id: number;
   artworkUrl: string;
+  names: {
+    [lang in Language]: string;
+  };
 }
 
 export interface PokeGeneration {
   name: string;
   id: number;
 }
+
+const PokemonCache = new CoolCache<Pokemon>("pokemon", async (name: string) => {
+  const species = await PokeAPI.PokemonSpecies.resolve(name);
+  const defaultForm = species.varieties.find(
+    (variety) => variety.is_default
+  ) as IPokemonSpeciesVariety;
+  const pokemon = await PokeAPI.Pokemon.resolve(defaultForm.pokemon.name);
+
+  const id = pokemon.id;
+  const artworkUrl = pokemon.sprites.front_default;
+  const names = species.names.reduce((acc, cur) => {
+    acc[cur.language.name as Language] = cur.name;
+    return acc;
+  }, {} as { [lang in Language]: string });
+
+  return {
+    id,
+    artworkUrl,
+    names,
+  };
+});
 
 /**
  * Fetch all the Pokemon generations
@@ -127,41 +155,58 @@ export async function getPokemonByGeneration(
   }
   const gens = await Promise.all(genPromises);
 
-  // get the basic list of pokemon introduced in each generation
-  const pokePromises: Promise<[IPokemon, IPokemonSpecies]>[] = [];
+  const pokePromises: Promise<Pokemon | void>[] = [];
   gens.forEach((gen) => {
     gen.pokemon_species.forEach((poke) => {
-      const p = PokeAPI.Pokemon.resolve(poke.name);
-      const ps = PokeAPI.PokemonSpecies.resolve(poke.name);
-      const pps = Promise.all([p, ps]);
-      pokePromises.push(pps);
+      const p = PokemonCache.get(poke.name);
+      pokePromises.push(p);
     });
   });
-  const pokes = await PromiseAllSettledChunk(pokePromises, 100);
 
-  // format this data into the Pokemon type
-  const pokemon: Pokemon[] = [];
-  pokes.forEach((res) => {
-    if (res.status === "fulfilled") {
-      const [poke, species] = res.value;
-      // const name = poke.name;
-      const nameResource = species.names.find(
-        (name) => name.language.name === lang
-      );
-      if (nameResource) {
-        const name = nameResource.name;
-        const id = poke.id;
-        const artworkUrl = poke.sprites.front_default;
-        pokemon.push({
-          name,
-          id,
-          artworkUrl,
-        });
-      }
-    }
-  });
+  const res = await PromiseAllSettledChunk(pokePromises, 100);
+  const pokemon: Pokemon[] = res
+    .filter((r) => r.status === "fulfilled")
+    // @ts-ignore
+    .map((r) => r.value)
+    .filter((poke: Pokemon | void) => !!poke);
 
   return pokemon;
+
+  // get the basic list of pokemon introduced in each generation
+  // const pokePromises: Promise<[IPokemon, IPokemonSpecies]>[] = [];
+  // gens.forEach((gen) => {
+  //   gen.pokemon_species.forEach((poke) => {
+  //     const p = PokeAPI.Pokemon.resolve(poke.name);
+  //     const ps = PokeAPI.PokemonSpecies.resolve(poke.name);
+  //     const pps = Promise.all([p, ps]);
+  //     pokePromises.push(pps);
+  //   });
+  // });
+  // const pokes = await PromiseAllSettledChunk(pokePromises, 100);
+
+  // // format this data into the Pokemon type
+  // const pokemon: Pokemon[] = [];
+  // pokes.forEach((res) => {
+  //   if (res.status === "fulfilled") {
+  //     const [poke, species] = res.value;
+  //     // const name = poke.name;
+  //     const nameResource = species.names.find(
+  //       (name) => name.language.name === lang
+  //     );
+  //     if (nameResource) {
+  //       const name = nameResource.name;
+  //       const id = poke.id;
+  //       const artworkUrl = poke.sprites.front_default;
+  //       pokemon.push({
+  //         name,
+  //         id,
+  //         artworkUrl,
+  //       });
+  //     }
+  //   }
+  // });
+
+  // return pokemon;
 }
 
 interface Options {

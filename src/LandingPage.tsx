@@ -179,8 +179,8 @@ function BoardSetup() {
             columns={state.board.columns}
             items={state.board.pokemon}
             renderCell={(item) => (
-              <Cell key={item.name} variant="unknown">
-                <img src={item.artworkUrl} alt={item.name} />
+              <Cell key={item.names.en} variant="unknown">
+                <img src={item.artworkUrl} alt={item.names.en} />
               </Cell>
             )}
           />
