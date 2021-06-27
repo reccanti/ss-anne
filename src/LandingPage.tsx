@@ -19,7 +19,7 @@ import {
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { PokeGetterContext } from "./PokeGetterContext";
-import { Game } from "./utils/pokeGetter";
+import { Game, Pokedex } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
 
@@ -107,6 +107,7 @@ function BoardSetup() {
   // hooks
 
   const [games, setGames] = useState<Game[]>([]);
+  const [dexes, setDexes] = useState<Pokedex[]>([]);
 
   const { state, dispatch } = useContext(AllTheFuckingStateCtx);
   const getter = useContext(PokeGetterContext);
@@ -129,6 +130,10 @@ function BoardSetup() {
     dispatch({ type: "setBoardGame", payload: game });
   };
 
+  const handlePokedexChange = (dex: Pokedex) => {
+    dispatch({ type: "setBoardPokedex", payload: dex });
+  };
+
   // fetch state
 
   useEffect(() => {
@@ -139,13 +144,29 @@ function BoardSetup() {
     fetch();
   }, [getter]);
 
+  // useEffect(() => {
+  //   const fetch = async () => {
+  //     const pokes = await getter.getPokemonByGeneration(state.board.generation);
+  //     dispatch({ type: "setBoardPokemon", payload: pokes });
+  //   };
+  //   fetch();
+  // }, [getter, dispatch, state.board.generation]);
+
   useEffect(() => {
     const fetch = async () => {
-      const pokes = await getter.getPokemonByGeneration(state.board.generation);
-      dispatch({ type: "setBoardPokemon", payload: pokes });
+      const dexes = await getter.getPokedexByGame(state.board.game);
+      setDexes(dexes);
     };
     fetch();
-  }, [getter, dispatch, state.board.generation]);
+  }, [getter, dispatch, state.board.game]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const pokemon = await getter.getPokemonByPokedex(state.board.pokedex);
+      dispatch({ type: "setBoardPokemon", payload: pokemon });
+    };
+    fetch();
+  }, [getter, dispatch, state.board.pokedex]);
 
   // render
 
@@ -178,6 +199,17 @@ function BoardSetup() {
             getKeyValue={(d) => d.name}
             getValue={(d) => d.id}
             onChange={handleGameChange}
+          />
+          <BetterSelect
+            id="pokedex-select"
+            label="Pokedex"
+            fullWidth
+            data={dexes}
+            value={state.board.pokedex}
+            getDisplayValue={(d) => d.name}
+            getKeyValue={(d) => d.name}
+            getValue={(d) => d.id}
+            onChange={handlePokedexChange}
           />
         </Paper>
       </Grid>

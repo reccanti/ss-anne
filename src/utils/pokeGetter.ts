@@ -15,34 +15,6 @@ import { PromiseAllSettledChunk } from "./PromiseAllChunk";
 import { CoolCache } from "./CoolCache";
 
 /**
- * Utility function to generate a lookup map for what generation
- * each pokemon belongs to. It's cached, so once it's been generated
- * the first time, it won't need to be called again.
- */
-const makePokemonGenLookup = memo(
-  async () => {
-    // fetch all generations from the PokeAPI
-    const gens = await PokeAPI.Generaition.listAll();
-    const fetchGens = gens.results.map((gen) =>
-      PokeAPI.Generaition.get(gen.name)
-    );
-    const genInfo = await Promise.all(fetchGens);
-
-    // create a lookup map to associate pokemon with
-    // generation
-    const lookup = new Map<string, number>();
-    genInfo.forEach((gen) => {
-      gen.pokemon_species.forEach((poke) => {
-        lookup.set(poke.name, gen.id);
-      });
-    });
-
-    return lookup;
-  },
-  { isPromise: true }
-);
-
-/**
  * All the languages that information could be
  * displayed in
  */
@@ -69,7 +41,6 @@ export type Language =
 interface IPokemonCache {
   nationalDexNumber: number;
   artworkUrl: string;
-  generation: number;
   names: {
     [lang in Language]: string;
   };
@@ -86,9 +57,6 @@ const PokemonCache = new CoolCache<IPokemonCache>(
     ) as IPokemonSpeciesVariety;
     const pokemon = await PokeAPI.Pokemon.resolve(defaultForm.pokemon.name);
 
-    // get the lookup map for all generations
-    const lookup = await makePokemonGenLookup();
-
     // extract the ID, name, and artwork for the pokemon. Put it in a format
     // that's faster to search than an array
     const nationalDexNumber = pokemon.id;
@@ -97,13 +65,11 @@ const PokemonCache = new CoolCache<IPokemonCache>(
       acc[cur.language.name as Language] = cur.name;
       return acc;
     }, {} as { [lang in Language]: string });
-    const generation = lookup.get(pokemon.name) as number;
 
     return {
       nationalDexNumber,
       artworkUrl,
       names,
-      generation,
     };
   }
 );
@@ -113,7 +79,7 @@ const PokemonCache = new CoolCache<IPokemonCache>(
  * information
  */
 interface IGameCache {
-  id: number;
+  id: string;
   names: {
     [lang in Language]: string;
   };
@@ -127,7 +93,7 @@ const GameCache = new CoolCache<IGameCache>("games", async (title: string) => {
 
   // extract the ID, names, and pokedex and put it in a format
   // that's faster to search than an array
-  const id = game.id;
+  const id = game.name;
   const names = game.names.reduce((acc, cur) => {
     acc[cur.language.name as Language] = cur.name;
     return acc;
@@ -140,6 +106,58 @@ const GameCache = new CoolCache<IGameCache>("games", async (title: string) => {
     pokedex,
   };
 });
+
+/**
+ * The Pokedex cache is where we keep all pokedex info
+ */
+interface IPokedexCache {
+  id: string;
+  names: {
+    [lang in Language]: string;
+  };
+  pokemon: string[];
+}
+
+const PokedexCache = new CoolCache<IPokedexCache>(
+  "pokedex",
+  async (name: string) => {
+    // get the pokedex
+    const dex = await PokeAPI.Pokedex.resolve(name);
+
+    // extract the ID, names, and pokemon and put it in a
+    // format  that's faster to search than an array
+    const id = dex.name;
+    const names = dex.names.reduce((acc, cur) => {
+      acc[cur.language.name as Language] = cur.name;
+      return acc;
+    }, {} as { [lang in Language]: string });
+    /**
+     * @NOTE this is a little complicated. What we're doing here
+     * is creating list of pokemon sorted by the pokedex order,
+     * which involves several steps
+     */
+    const pokemonEntries = dex.pokemon_entries.map((entry) => ({
+      name: entry.pokemon_species.name,
+      num: entry.entry_number,
+    }));
+    pokemonEntries.sort((a, b) => {
+      if (a.num > b.num) {
+        return 1;
+      } else if (a.num < b.num) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });
+    const pokemon = pokemonEntries.map((entry) => entry.name);
+
+    return {
+      id,
+      names,
+      pokemon,
+    };
+  }
+);
 
 export interface PokeGeneration {
   name: string;
@@ -226,9 +244,28 @@ async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
 export interface Pokemon {
   nationalDexNumber: number;
   name: string;
-  generation: number;
   artworkUrl: string;
 }
+
+const getPokemonByPokedex = memo(
+  async (lang: Language, dexName: string): Promise<Pokemon[]> => {
+    const dex = (await PokedexCache.get(dexName)) as IPokedexCache;
+    const pokemonPromises = dex.pokemon.map((poke) => PokemonCache.get(poke));
+    const pokemonCacheResults = await PromiseAllSettledChunk(
+      pokemonPromises,
+      50
+    );
+    const pokemonAccepted = pokemonCacheResults.filter(
+      (r) => r.status === "fulfilled" && !!r.value
+    ) as PromiseFulfilledResult<IPokemonCache>[];
+    const pokemonCached = pokemonAccepted.map((r) => r.value);
+    return pokemonCached.map((poke) => ({
+      name: poke.names[lang],
+      artworkUrl: poke.artworkUrl,
+      nationalDexNumber: poke.nationalDexNumber,
+    }));
+  }
+);
 
 export async function getPokemonByGeneration(
   lang: Language,
@@ -272,7 +309,7 @@ export async function getPokemonByGeneration(
  * This is used to get a list of all the mainline Pokemon games
  */
 export interface Game {
-  id: number;
+  id: string;
   name: string;
   pokedex: string[];
 }
@@ -284,13 +321,49 @@ const getAllGames = memo(async (lang: Language): Promise<Game[]> => {
   );
   const cachedGames = await Promise.all(gamePromises);
   const filtered = cachedGames.filter((game) => !!game) as IGameCache[];
-  return filtered.map((cache) => ({
-    id: cache.id,
-    name: cache.names[lang],
-    pokedex: cache.pokedex,
-  }));
+  return (
+    filtered
+      // just filter out games without pokedexes because this won't work otherwise.
+      // seems to be a problem for XD and Colosseum
+      .filter((game) => game.pokedex.length > 0)
+      .map((cache) => ({
+        id: cache.id,
+        name: cache.names[lang],
+        pokedex: cache.pokedex,
+      }))
+  );
 });
 
+/**
+ * This is used to get a list of Pokedexes for each game.
+ */
+export interface Pokedex {
+  id: string;
+  name: string;
+  pokemon: string[];
+}
+
+const getPokedexByGame = memo(async (lang: Language, gameName: string): Promise<
+  Pokedex[]
+> => {
+  const game = (await GameCache.get(gameName)) as IGameCache;
+  const dexNames = game.pokedex;
+  const dexPromises = dexNames.map((name) => PokedexCache.get(name));
+  const cachedDexes = await Promise.all(dexPromises);
+  const filtered = cachedDexes.filter((dex) => !!dex) as IPokedexCache[];
+  const basePokedexes = filtered.map((cache) => ({
+    id: cache.id,
+    name: cache.names[lang],
+    pokemon: cache.pokemon,
+  }));
+
+  return basePokedexes;
+});
+
+/**
+ * A wrapper around all of these functions which automatically sets
+ * the correct language. Maybe other things in the future
+ */
 interface Options {
   lang: Language;
 }
@@ -304,6 +377,14 @@ export class PokeGetter {
 
   async getAllGames(): Promise<Game[]> {
     return await getAllGames(this.language);
+  }
+
+  async getPokedexByGame(game: Game): Promise<Pokedex[]> {
+    return await getPokedexByGame(this.language, game.id);
+  }
+
+  async getPokemonByPokedex(dex: Pokedex): Promise<Pokemon[]> {
+    return await getPokemonByPokedex(this.language, dex.id);
   }
 
   async getAllGenerations(): Promise<PokeGeneration[]> {

@@ -8,7 +8,7 @@
  * ~reccanti 6/19/2021
  */
 import { createContext, ReactNode, useReducer } from "react";
-import { Pokemon, PokeGeneration, Game } from "./utils/pokeGetter";
+import { Pokemon, PokeGeneration, Game, Pokedex } from "./utils/pokeGetter";
 
 // various types for interacting with state
 
@@ -22,6 +22,7 @@ interface BoardConfig {
   generation: PokeGeneration;
   game: Game;
   pokemon: Pokemon[];
+  pokedex: Pokedex;
 }
 
 // compose all our types into a state blob. Create the reducer
@@ -44,13 +45,18 @@ const initialState: FuckingState = {
     name: "",
     columns: 15,
     game: {
-      id: 1,
+      id: "red",
       name: "Red",
       pokedex: [],
     },
     generation: {
       id: 1,
       name: "Generation I",
+    },
+    pokedex: {
+      id: "kanto",
+      name: "Kanto",
+      pokemon: [],
     },
     pokemon: [],
   },
@@ -96,13 +102,19 @@ interface SetBoardGame extends BaseAction {
   payload: Game;
 }
 
+interface SetBoardPokedex extends BaseAction {
+  type: "setBoardPokedex";
+  payload: Pokedex;
+}
+
 type Action =
   | SetPlayer
   | SetBoardName
   | SetBoardColumns
   | SetBoardGeneration
   | SetBoardPokemon
-  | SetBoardGame;
+  | SetBoardGame
+  | SetBoardPokedex;
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
@@ -163,6 +175,17 @@ function reducer(state: FuckingState, action: Action): FuckingState {
         board: {
           ...state.board,
           pokemon: [...action.payload],
+        },
+      };
+    }
+    case "setBoardPokedex": {
+      return {
+        ...state,
+        board: {
+          ...state.board,
+          pokedex: {
+            ...action.payload,
+          },
         },
       };
     }
