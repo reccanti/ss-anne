@@ -47,6 +47,7 @@ const initialState: FuckingState = {
     game: {
       id: "red",
       name: "Red",
+      generation: "generation-i",
       pokedex: [],
     },
     generation: {

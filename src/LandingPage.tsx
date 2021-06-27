@@ -196,7 +196,7 @@ function BoardSetup() {
             data={games}
             value={state.board.game}
             getDisplayValue={(d) => d.name}
-            getKeyValue={(d) => d.name}
+            getKeyValue={(d) => d.id}
             getValue={(d) => d.id}
             onChange={handleGameChange}
           />
@@ -207,7 +207,7 @@ function BoardSetup() {
             data={dexes}
             value={state.board.pokedex}
             getDisplayValue={(d) => d.name}
-            getKeyValue={(d) => d.name}
+            getKeyValue={(d) => d.id}
             getValue={(d) => d.id}
             onChange={handlePokedexChange}
           />

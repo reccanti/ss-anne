@@ -39,6 +39,7 @@ export type Language =
  * of arrays in order to decrease the time needed
  */
 interface IPokemonCache {
+  id: string;
   nationalDexNumber: number;
   artworkUrl: string;
   names: {
@@ -67,6 +68,7 @@ const PokemonCache = new CoolCache<IPokemonCache>(
     }, {} as { [lang in Language]: string });
 
     return {
+      id: name,
       nationalDexNumber,
       artworkUrl,
       names,
@@ -80,6 +82,7 @@ const PokemonCache = new CoolCache<IPokemonCache>(
  */
 interface IGameCache {
   id: string;
+  generation: string;
   names: {
     [lang in Language]: string;
   };
@@ -99,17 +102,81 @@ const GameCache = new CoolCache<IGameCache>("games", async (title: string) => {
     return acc;
   }, {} as { [lang in Language]: string });
   const pokedex = group.pokedexes.map((dex) => dex.name);
+  const generation = group.generation.name;
 
   return {
     id,
     names,
     pokedex,
+    generation,
   };
 });
 
 /**
  * The Pokedex cache is where we keep all pokedex info
  */
+const makeNationalDex = memo(async (gen: string): Promise<IPokedexCache> => {
+  // first get all the pokedex in each generation
+  const generation = await PokeAPI.Generaition.resolve(gen);
+  const groupPromises = generation.version_groups.map((group) =>
+    PokeAPI.VerionGroup.resolve(group.name)
+  );
+  const groups = await Promise.all(groupPromises);
+  const dexPromises = groups.flatMap((group) =>
+    group.pokedexes.map((dex) => PokedexCache.get(dex.name))
+  );
+  const dexes = (await Promise.all(dexPromises)) as IPokedexCache[];
+
+  // create a set containing the names of each unique pokemon across
+  // all the dexes. This should cover scenarios like Sword and Shield,
+  // where not all pokemon are present.
+  const pokemonSet = new Set<string>();
+  dexes.forEach((dex) => {
+    dex.pokemon.forEach((poke) => {
+      pokemonSet.add(poke);
+    });
+  });
+
+  // we need to determine the order the pokemon should appear in, so
+  // let's get all of their data, put them in a lookup map, and sort
+  // them
+  const lookup = new Map<string, number>();
+  const pokePromises = Array.from(pokemonSet).map((poke) =>
+    PokemonCache.get(poke)
+  );
+  const pokeResults = await PromiseAllSettledChunk(pokePromises, 100);
+  const fulfilled = pokeResults.filter(
+    (r) => r.status === "fulfilled"
+  ) as PromiseFulfilledResult<IPokemonCache>[];
+  const pokes = fulfilled.map((r) => r.value);
+  pokes.forEach((poke) => {
+    lookup.set(poke.id, poke.nationalDexNumber);
+  });
+
+  // get the name of the National dex for the game
+  const nationalDex = (await PokedexCache.get("national")) as IPokedexCache;
+
+  const names = nationalDex.names;
+  const pokemon = Array.from(pokemonSet).sort((a, b) => {
+    const aNum = lookup.get(a) as number;
+    const bNum = lookup.get(b) as number;
+    if (aNum > bNum) {
+      return 1;
+    } else if (aNum < bNum) {
+      return -1;
+    } else {
+      return 0;
+    }
+  });
+  const id = `national/${gen}`;
+
+  return {
+    names,
+    pokemon,
+    id,
+  };
+});
+
 interface IPokedexCache {
   id: string;
   names: {
@@ -121,41 +188,47 @@ interface IPokedexCache {
 const PokedexCache = new CoolCache<IPokedexCache>(
   "pokedex",
   async (name: string) => {
-    // get the pokedex
-    const dex = await PokeAPI.Pokedex.resolve(name);
+    if (name.includes("national/")) {
+      const [, gen] = name.split("/");
+      const cache = makeNationalDex(gen);
+      return cache;
+    } else {
+      // get the pokedex
+      const dex = await PokeAPI.Pokedex.resolve(name);
 
-    // extract the ID, names, and pokemon and put it in a
-    // format  that's faster to search than an array
-    const id = dex.name;
-    const names = dex.names.reduce((acc, cur) => {
-      acc[cur.language.name as Language] = cur.name;
-      return acc;
-    }, {} as { [lang in Language]: string });
-    /**
-     * @NOTE this is a little complicated. What we're doing here
-     * is creating list of pokemon sorted by the pokedex order,
-     * which involves several steps
-     */
-    const pokemonEntries = dex.pokemon_entries.map((entry) => ({
-      name: entry.pokemon_species.name,
-      num: entry.entry_number,
-    }));
-    pokemonEntries.sort((a, b) => {
-      if (a.num > b.num) {
-        return 1;
-      } else if (a.num < b.num) {
-        return -1;
-      } else {
-        return 0;
-      }
-    });
-    const pokemon = pokemonEntries.map((entry) => entry.name);
+      // extract the ID, names, and pokemon and put it in a
+      // format  that's faster to search than an array
+      const id = dex.name;
+      const names = dex.names.reduce((acc, cur) => {
+        acc[cur.language.name as Language] = cur.name;
+        return acc;
+      }, {} as { [lang in Language]: string });
+      /**
+       * @NOTE this is a little complicated. What we're doing here
+       * is creating list of pokemon sorted by the pokedex order,
+       * which involves several steps
+       */
+      const pokemonEntries = dex.pokemon_entries.map((entry) => ({
+        name: entry.pokemon_species.name,
+        num: entry.entry_number,
+      }));
+      pokemonEntries.sort((a, b) => {
+        if (a.num > b.num) {
+          return 1;
+        } else if (a.num < b.num) {
+          return -1;
+        } else {
+          return 0;
+        }
+      });
+      const pokemon = pokemonEntries.map((entry) => entry.name);
 
-    return {
-      id,
-      names,
-      pokemon,
-    };
+      return {
+        id,
+        names,
+        pokemon,
+      };
+    }
   }
 );
 
@@ -165,83 +238,11 @@ export interface PokeGeneration {
 }
 
 /**
- * Fetch all the Pokemon generations
- */
-async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
-  // list out all the generations
-  const genList = await PokeAPI.Generaition.listAll();
-
-  // get info from all of the generations
-  const genRequests = genList.results.map((gen) =>
-    PokeAPI.Generaition.resolve(gen.name)
-  );
-  const genInfoDump = await Promise.all(genRequests);
-
-  // parse out that info into a list of our generations
-  const gens: PokeGeneration[] = [];
-  genInfoDump.forEach((gen) => {
-    const genName = gen.names.find((name) => name.language.name === lang);
-    if (genName) {
-      gens.push({
-        name: genName.name,
-        id: gen.id,
-      });
-    }
-  });
-
-  return gens;
-}
-
-/**
- * Get info on all the pokemon available in each generation
- *
- * @TODO - This logic is incomplete and probably bad. I think this
- * is the flow I'd like to encourage:
- *
- * 1. Select the game you're playing
- * 2. Use that to find the version group
- * 3. Use that to find the generation
- * 4. Find all the pokemon-species in that generation
- * 5. Get the names of all the varieties of that species
- * 6. Look up all those varieties
- *
- * This is kind of unmanegeable in it's current form. I think
- * what I'd like to do is create a "Cache" layer that will look
- * something like this:
- *
- * {
- *   pokemon: {...},
- *   games: {...}
- * }
- *
- * The cache will work like this:
- *
- * ```
- * Cache.get("pokemon").get("crobat")
- * ```
- *
- * or
- *
- * ```
- * Cache.get("games").get("pokemon")
- * ```
- *
- * It will work like this:
- *
- * 1. Does that request exist as a memoized value in the cache?
- *    If so, return that
- * 2. Does the entry exist in the cache? If so, lookup the value
- *    and return that
- * 3. Otherwise, make a request to the PokeAPI, store the value
- *    in localstorage, and then return the result
- *
- * Maybe multiple Caches for each type would be easier to implement
- * and manage?
- *
- * ~reccanti 6/22/21
+ * Get info on all the pokemon
  */
 
 export interface Pokemon {
+  id: string;
   nationalDexNumber: number;
   name: string;
   artworkUrl: string;
@@ -260,6 +261,7 @@ const getPokemonByPokedex = memo(
     ) as PromiseFulfilledResult<IPokemonCache>[];
     const pokemonCached = pokemonAccepted.map((r) => r.value);
     return pokemonCached.map((poke) => ({
+      id: poke.id,
       name: poke.names[lang],
       artworkUrl: poke.artworkUrl,
       nationalDexNumber: poke.nationalDexNumber,
@@ -267,50 +269,13 @@ const getPokemonByPokedex = memo(
   }
 );
 
-export async function getPokemonByGeneration(
-  lang: Language,
-  generationId: number
-): Promise<Pokemon[]> {
-  // based on the generation, cycle backward to get all the pokemon
-  let currentGen = generationId;
-  const genPromises: ReturnType<typeof PokeAPI.Generaition.resolve>[] = [];
-  while (currentGen > 0) {
-    genPromises.push(PokeAPI.Generaition.resolve(currentGen));
-    currentGen--;
-  }
-  const gens = await Promise.all(genPromises);
-
-  const pokePromises: Promise<IPokemonCache | void>[] = [];
-  gens.forEach((gen) => {
-    gen.pokemon_species.forEach((poke) => {
-      const p = PokemonCache.get(poke.name);
-      pokePromises.push(p);
-    });
-  });
-
-  const res = await PromiseAllSettledChunk(pokePromises, 100);
-  const pokemon: Pokemon[] = res
-    .filter((r) => r.status === "fulfilled" && !!r.value)
-    .map((r) => ({
-      // @ts-ignore
-      name: r.value.names[lang],
-      // @ts-ignore
-      nationalDexNumber: r.value.id,
-      // @ts-ignore
-      generation: r.value.generation,
-      // @ts-ignore
-      artworkUrl: r.value.artworkUrl,
-    }));
-
-  return pokemon;
-}
-
 /**
  * This is used to get a list of all the mainline Pokemon games
  */
 export interface Game {
   id: string;
   name: string;
+  generation: string;
   pokedex: string[];
 }
 
@@ -329,6 +294,7 @@ const getAllGames = memo(async (lang: Language): Promise<Game[]> => {
       .map((cache) => ({
         id: cache.id,
         name: cache.names[lang],
+        generation: cache.generation,
         pokedex: cache.pokedex,
       }))
   );
@@ -357,7 +323,14 @@ const getPokedexByGame = memo(async (lang: Language, gameName: string): Promise<
     pokemon: cache.pokemon,
   }));
 
-  return basePokedexes;
+  const nationalDexCache = await makeNationalDex(game.generation);
+  const nationalDex = {
+    name: nationalDexCache.names[lang],
+    id: nationalDexCache.id,
+    pokemon: nationalDexCache.pokemon,
+  };
+
+  return [nationalDex, ...basePokedexes];
 });
 
 /**
@@ -385,13 +358,5 @@ export class PokeGetter {
 
   async getPokemonByPokedex(dex: Pokedex): Promise<Pokemon[]> {
     return await getPokemonByPokedex(this.language, dex.id);
-  }
-
-  async getAllGenerations(): Promise<PokeGeneration[]> {
-    return await getAllGenerations(this.language);
-  }
-
-  async getPokemonByGeneration(generation: PokeGeneration) {
-    return await getPokemonByGeneration(this.language, generation.id);
   }
 }
