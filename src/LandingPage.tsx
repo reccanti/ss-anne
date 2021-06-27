@@ -19,7 +19,7 @@ import {
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { PokeGetterContext } from "./PokeGetterContext";
-import { PokeGeneration } from "./utils/pokeGetter";
+import { Game } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
 
@@ -104,12 +104,16 @@ const useBoardStyles = makeStyles({
 });
 
 function BoardSetup() {
-  const [gens, setGens] = useState<PokeGeneration[]>([]);
+  // hooks
+
+  const [games, setGames] = useState<Game[]>([]);
 
   const { state, dispatch } = useContext(AllTheFuckingStateCtx);
   const getter = useContext(PokeGetterContext);
 
   const styles = useBoardStyles();
+
+  // handlers
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     const name = event.target.value;
@@ -121,14 +125,16 @@ function BoardSetup() {
     dispatch({ type: "setBoardColumns", payload: { columns } });
   };
 
-  const handleGenChange = (gen: PokeGeneration) => {
-    dispatch({ type: "setBoardGeneration", payload: gen });
+  const handleGameChange = (game: Game) => {
+    dispatch({ type: "setBoardGame", payload: game });
   };
+
+  // fetch state
 
   useEffect(() => {
     const fetch = async () => {
-      const gens = await getter.getAllGenerations();
-      setGens(gens);
+      const games = await getter.getAllGames();
+      setGames(games);
     };
     fetch();
   }, [getter]);
@@ -140,6 +146,8 @@ function BoardSetup() {
     };
     fetch();
   }, [getter, dispatch, state.board.generation]);
+
+  // render
 
   return (
     <Grid container>
@@ -161,15 +169,15 @@ function BoardSetup() {
             />
           </FormControl>
           <BetterSelect
-            id="gen-select"
-            label="Generation"
+            id="game-select"
+            label="Game"
             fullWidth
-            data={gens}
-            value={state.board.generation}
+            data={games}
+            value={state.board.game}
             getDisplayValue={(d) => d.name}
             getKeyValue={(d) => d.name}
             getValue={(d) => d.id}
-            onChange={handleGenChange}
+            onChange={handleGameChange}
           />
         </Paper>
       </Grid>
@@ -179,8 +187,8 @@ function BoardSetup() {
             columns={state.board.columns}
             items={state.board.pokemon}
             renderCell={(item) => (
-              <Cell key={item.names.en} variant="unknown">
-                <img src={item.artworkUrl} alt={item.names.en} />
+              <Cell key={item.name} variant="unknown">
+                <img src={item.artworkUrl} alt={item.name} />
               </Cell>
             )}
           />

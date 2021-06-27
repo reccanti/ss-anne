@@ -10,9 +10,42 @@
  * swapping out the data source
  */
 import PokeAPI, { IPokemonSpeciesVariety } from "pokeapi-typescript";
-import { CoolCache } from "./CoolCache";
+import memo from "micro-memoize";
 import { PromiseAllSettledChunk } from "./PromiseAllChunk";
+import { CoolCache } from "./CoolCache";
 
+/**
+ * Utility function to generate a lookup map for what generation
+ * each pokemon belongs to. It's cached, so once it's been generated
+ * the first time, it won't need to be called again.
+ */
+const makePokemonGenLookup = memo(
+  async () => {
+    // fetch all generations from the PokeAPI
+    const gens = await PokeAPI.Generaition.listAll();
+    const fetchGens = gens.results.map((gen) =>
+      PokeAPI.Generaition.get(gen.name)
+    );
+    const genInfo = await Promise.all(fetchGens);
+
+    // create a lookup map to associate pokemon with
+    // generation
+    const lookup = new Map<string, number>();
+    genInfo.forEach((gen) => {
+      gen.pokemon_species.forEach((poke) => {
+        lookup.set(poke.name, gen.id);
+      });
+    });
+
+    return lookup;
+  },
+  { isPromise: true }
+);
+
+/**
+ * All the languages that information could be
+ * displayed in
+ */
 export type Language =
   | "ja-Hrkt"
   | "roomaji"
@@ -28,39 +61,90 @@ export type Language =
   | "zh-Hans"
   | "pt-BR";
 
-export interface Pokemon {
-  id: number;
+/**
+ * The Pokemon Cache contains all the information needed to display
+ * and work with Pokemon data. When needed, objects are used instead
+ * of arrays in order to decrease the time needed
+ */
+interface IPokemonCache {
+  nationalDexNumber: number;
   artworkUrl: string;
+  generation: number;
   names: {
     [lang in Language]: string;
   };
 }
 
+const PokemonCache = new CoolCache<IPokemonCache>(
+  "pokemon",
+  async (name: string) => {
+    // first, look up the Pokemon species and fetch the
+    // resource for its default variety
+    const species = await PokeAPI.PokemonSpecies.resolve(name);
+    const defaultForm = species.varieties.find(
+      (variety) => variety.is_default
+    ) as IPokemonSpeciesVariety;
+    const pokemon = await PokeAPI.Pokemon.resolve(defaultForm.pokemon.name);
+
+    // get the lookup map for all generations
+    const lookup = await makePokemonGenLookup();
+
+    // extract the ID, name, and artwork for the pokemon. Put it in a format
+    // that's faster to search than an array
+    const nationalDexNumber = pokemon.id;
+    const artworkUrl = pokemon.sprites.front_default;
+    const names = species.names.reduce((acc, cur) => {
+      acc[cur.language.name as Language] = cur.name;
+      return acc;
+    }, {} as { [lang in Language]: string });
+    const generation = lookup.get(pokemon.name) as number;
+
+    return {
+      nationalDexNumber,
+      artworkUrl,
+      names,
+      generation,
+    };
+  }
+);
+
+/**
+ * The Game Cache contains all the information needed to get game-related
+ * information
+ */
+interface IGameCache {
+  id: number;
+  names: {
+    [lang in Language]: string;
+  };
+  pokedex: string[];
+}
+
+const GameCache = new CoolCache<IGameCache>("games", async (title: string) => {
+  // get the game and the version group that game belongs to
+  const game = await PokeAPI.Version.resolve(title);
+  const group = await PokeAPI.VerionGroup.resolve(game.version_group.name);
+
+  // extract the ID, names, and pokedex and put it in a format
+  // that's faster to search than an array
+  const id = game.id;
+  const names = game.names.reduce((acc, cur) => {
+    acc[cur.language.name as Language] = cur.name;
+    return acc;
+  }, {} as { [lang in Language]: string });
+  const pokedex = group.pokedexes.map((dex) => dex.name);
+
+  return {
+    id,
+    names,
+    pokedex,
+  };
+});
+
 export interface PokeGeneration {
   name: string;
   id: number;
 }
-
-const PokemonCache = new CoolCache<Pokemon>("pokemon", async (name: string) => {
-  const species = await PokeAPI.PokemonSpecies.resolve(name);
-  const defaultForm = species.varieties.find(
-    (variety) => variety.is_default
-  ) as IPokemonSpeciesVariety;
-  const pokemon = await PokeAPI.Pokemon.resolve(defaultForm.pokemon.name);
-
-  const id = pokemon.id;
-  const artworkUrl = pokemon.sprites.front_default;
-  const names = species.names.reduce((acc, cur) => {
-    acc[cur.language.name as Language] = cur.name;
-    return acc;
-  }, {} as { [lang in Language]: string });
-
-  return {
-    id,
-    artworkUrl,
-    names,
-  };
-});
 
 /**
  * Fetch all the Pokemon generations
@@ -138,6 +222,14 @@ async function getAllGenerations(lang: Language): Promise<PokeGeneration[]> {
  *
  * ~reccanti 6/22/21
  */
+
+export interface Pokemon {
+  nationalDexNumber: number;
+  name: string;
+  generation: number;
+  artworkUrl: string;
+}
+
 export async function getPokemonByGeneration(
   lang: Language,
   generationId: number
@@ -151,7 +243,7 @@ export async function getPokemonByGeneration(
   }
   const gens = await Promise.all(genPromises);
 
-  const pokePromises: Promise<Pokemon | void>[] = [];
+  const pokePromises: Promise<IPokemonCache | void>[] = [];
   gens.forEach((gen) => {
     gen.pokemon_species.forEach((poke) => {
       const p = PokemonCache.get(poke.name);
@@ -161,49 +253,43 @@ export async function getPokemonByGeneration(
 
   const res = await PromiseAllSettledChunk(pokePromises, 100);
   const pokemon: Pokemon[] = res
-    .filter((r) => r.status === "fulfilled")
-    // @ts-ignore
-    .map((r) => r.value)
-    .filter((poke: Pokemon | void) => !!poke);
+    .filter((r) => r.status === "fulfilled" && !!r.value)
+    .map((r) => ({
+      // @ts-ignore
+      name: r.value.names[lang],
+      // @ts-ignore
+      nationalDexNumber: r.value.id,
+      // @ts-ignore
+      generation: r.value.generation,
+      // @ts-ignore
+      artworkUrl: r.value.artworkUrl,
+    }));
 
   return pokemon;
-
-  // get the basic list of pokemon introduced in each generation
-  // const pokePromises: Promise<[IPokemon, IPokemonSpecies]>[] = [];
-  // gens.forEach((gen) => {
-  //   gen.pokemon_species.forEach((poke) => {
-  //     const p = PokeAPI.Pokemon.resolve(poke.name);
-  //     const ps = PokeAPI.PokemonSpecies.resolve(poke.name);
-  //     const pps = Promise.all([p, ps]);
-  //     pokePromises.push(pps);
-  //   });
-  // });
-  // const pokes = await PromiseAllSettledChunk(pokePromises, 100);
-
-  // // format this data into the Pokemon type
-  // const pokemon: Pokemon[] = [];
-  // pokes.forEach((res) => {
-  //   if (res.status === "fulfilled") {
-  //     const [poke, species] = res.value;
-  //     // const name = poke.name;
-  //     const nameResource = species.names.find(
-  //       (name) => name.language.name === lang
-  //     );
-  //     if (nameResource) {
-  //       const name = nameResource.name;
-  //       const id = poke.id;
-  //       const artworkUrl = poke.sprites.front_default;
-  //       pokemon.push({
-  //         name,
-  //         id,
-  //         artworkUrl,
-  //       });
-  //     }
-  //   }
-  // });
-
-  // return pokemon;
 }
+
+/**
+ * This is used to get a list of all the mainline Pokemon games
+ */
+export interface Game {
+  id: number;
+  name: string;
+  pokedex: string[];
+}
+
+const getAllGames = memo(async (lang: Language): Promise<Game[]> => {
+  const gameResources = await PokeAPI.Version.listAll();
+  const gamePromises = gameResources.results.map((res) =>
+    GameCache.get(res.name)
+  );
+  const cachedGames = await Promise.all(gamePromises);
+  const filtered = cachedGames.filter((game) => !!game) as IGameCache[];
+  return filtered.map((cache) => ({
+    id: cache.id,
+    name: cache.names[lang],
+    pokedex: cache.pokedex,
+  }));
+});
 
 interface Options {
   lang: Language;
@@ -214,6 +300,10 @@ export class PokeGetter {
 
   constructor({ lang = "en" }: Options) {
     this.language = lang;
+  }
+
+  async getAllGames(): Promise<Game[]> {
+    return await getAllGames(this.language);
   }
 
   async getAllGenerations(): Promise<PokeGeneration[]> {

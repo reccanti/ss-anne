@@ -8,7 +8,7 @@
  * ~reccanti 6/19/2021
  */
 import { createContext, ReactNode, useReducer } from "react";
-import { Pokemon, PokeGeneration } from "./utils/pokeGetter";
+import { Pokemon, PokeGeneration, Game } from "./utils/pokeGetter";
 
 // various types for interacting with state
 
@@ -20,6 +20,7 @@ interface BoardConfig {
   name: string;
   columns: number;
   generation: PokeGeneration;
+  game: Game;
   pokemon: Pokemon[];
 }
 
@@ -42,6 +43,11 @@ const initialState: FuckingState = {
   board: {
     name: "",
     columns: 15,
+    game: {
+      id: 1,
+      name: "Red",
+      pokedex: [],
+    },
     generation: {
       id: 1,
       name: "Generation I",
@@ -85,12 +91,18 @@ interface SetBoardPokemon extends BaseAction {
   payload: Pokemon[];
 }
 
+interface SetBoardGame extends BaseAction {
+  type: "setBoardGame";
+  payload: Game;
+}
+
 type Action =
   | SetPlayer
   | SetBoardName
   | SetBoardColumns
   | SetBoardGeneration
-  | SetBoardPokemon;
+  | SetBoardPokemon
+  | SetBoardGame;
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
@@ -129,6 +141,17 @@ function reducer(state: FuckingState, action: Action): FuckingState {
         board: {
           ...state.board,
           generation: {
+            ...action.payload,
+          },
+        },
+      };
+    }
+    case "setBoardGame": {
+      return {
+        ...state,
+        board: {
+          ...state.board,
+          game: {
             ...action.payload,
           },
         },
