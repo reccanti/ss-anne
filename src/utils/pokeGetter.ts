@@ -291,6 +291,9 @@ const getAllGames = memo(async (lang: Language): Promise<Game[]> => {
       // just filter out games without pokedexes because this won't work otherwise.
       // seems to be a problem for XD and Colosseum
       .filter((game) => game.pokedex.length > 0)
+      // filtering out games without a name array because this won't work otherwise.
+      // seems to be a problem for Let's Go and Sword & Shield
+      .filter((game) => Object.keys(game.names).length > 0)
       .map((cache) => ({
         id: cache.id,
         name: cache.names[lang],
