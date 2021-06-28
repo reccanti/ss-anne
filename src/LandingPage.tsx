@@ -101,6 +101,9 @@ const useBoardStyles = makeStyles({
       marginTop: "1rem",
     },
   },
+  image: {
+    pointerEvents: "none",
+  },
 });
 
 function BoardSetup() {
@@ -143,14 +146,6 @@ function BoardSetup() {
     };
     fetch();
   }, [getter]);
-
-  // useEffect(() => {
-  //   const fetch = async () => {
-  //     const pokes = await getter.getPokemonByGeneration(state.board.generation);
-  //     dispatch({ type: "setBoardPokemon", payload: pokes });
-  //   };
-  //   fetch();
-  // }, [getter, dispatch, state.board.generation]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -220,7 +215,11 @@ function BoardSetup() {
             items={state.board.pokemon}
             renderCell={(item) => (
               <Cell key={item.name} variant="unknown">
-                <img src={item.artworkUrl} alt={item.name} />
+                <img
+                  className={styles.image}
+                  src={item.artworkUrl}
+                  alt={item.name}
+                />
               </Cell>
             )}
           />

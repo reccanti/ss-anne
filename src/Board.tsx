@@ -14,6 +14,7 @@
 import { ReactNode, SyntheticEvent } from "react";
 import { makeStyles, Box } from "@material-ui/core";
 import { blueGrey, red, teal } from "@material-ui/core/colors";
+import ScrollContainer from "react-indiana-drag-scroll";
 
 export type CellVariant = "ship-hit" | "ship-unhit" | "miss" | "unknown";
 
@@ -94,17 +95,12 @@ export function Board<DataType extends object>({
   );
 }
 
-interface BoardContainerStyleProps {
-  height?: number | string;
-  width?: number | string;
-}
-
 const useBoardContainerStyles = makeStyles({
-  root: (props: BoardContainerStyleProps) => ({
-    width: props.width ?? "100%",
-    height: props.height ?? "100vh",
+  root: {
+    width: "100%",
+    height: "100vh",
     overflow: "scroll",
-  }),
+  },
 });
 
 interface BoardContainerProps {
@@ -112,6 +108,6 @@ interface BoardContainerProps {
 }
 
 export function BoardContainer({ children }: BoardContainerProps) {
-  const styles = useBoardContainerStyles({});
-  return <Box className={styles.root}>{children}</Box>;
+  const styles = useBoardContainerStyles();
+  return <ScrollContainer className={styles.root}>{children}</ScrollContainer>;
 }
