@@ -12,7 +12,7 @@
  * is up to you.
  */
 import { ReactNode, SyntheticEvent } from "react";
-import { makeStyles, Box } from "@material-ui/core";
+import { makeStyles } from "@material-ui/core";
 import { blueGrey, red, teal } from "@material-ui/core/colors";
 import ScrollContainer from "react-indiana-drag-scroll";
 

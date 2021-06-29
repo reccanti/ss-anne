@@ -9,6 +9,7 @@
  */
 import { createContext, ReactNode, useReducer } from "react";
 import { Pokemon, PokeGeneration, Game, Pokedex } from "./utils/pokeGetter";
+import PeerJS from "peerjs";
 
 // various types for interacting with state
 
@@ -34,6 +35,7 @@ interface FuckingState {
     opponent: User | null;
   };
   board: BoardConfig;
+  peerjs: PeerJS | null;
 }
 
 const initialState: FuckingState = {
@@ -41,6 +43,16 @@ const initialState: FuckingState = {
     player: null,
     opponent: null,
   },
+  /**
+   * @TODO - It might make more sense to make this
+   * local state in the BoardSetup page, only updating
+   * the full state once we're ready to submit it. This
+   * would allow us to more easily make a BoardConfig | null
+   * type, since we'd only have to make the board when we have
+   * all the information
+   *
+   * ~reccanti 6/28/2021
+   */
   board: {
     name: "",
     columns: 15,
@@ -61,6 +73,7 @@ const initialState: FuckingState = {
     },
     pokemon: [],
   },
+  peerjs: null,
 };
 
 interface BaseAction {
@@ -108,6 +121,11 @@ interface SetBoardPokedex extends BaseAction {
   payload: Pokedex;
 }
 
+interface SetPeerJS extends BaseAction {
+  type: "setPeerJS";
+  payload: PeerJS;
+}
+
 type Action =
   | SetPlayer
   | SetBoardName
@@ -115,7 +133,8 @@ type Action =
   | SetBoardGeneration
   | SetBoardPokemon
   | SetBoardGame
-  | SetBoardPokedex;
+  | SetBoardPokedex
+  | SetPeerJS;
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
@@ -190,6 +209,12 @@ function reducer(state: FuckingState, action: Action): FuckingState {
         },
       };
     }
+    case "setPeerJS": {
+      return {
+        ...state,
+        peerjs: action.payload,
+      };
+    }
     default: {
       return state;
     }
@@ -218,6 +243,7 @@ interface Props {
 
 export function AllTheFuckingStateProvider({ children }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
   const value: FuckingContext = {
     state,
     dispatch,

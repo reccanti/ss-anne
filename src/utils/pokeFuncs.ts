@@ -24,3 +24,5 @@ export async function fetchPokemonByGeneration(
   const pokemon = await Promise.all(pokePromises);
   return pokemon;
 }
+
+async function fetchAllGens() {}

@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 import "./App.css";
 import { LandingPage } from "./LandingPage";
+import { LobbyPage } from "./LobbyPage";
 
 /**
  * Let's start thinking about the "App State". These will be the various
@@ -45,6 +46,9 @@ function App() {
           <Switch>
             <Route exact path="/">
               <LandingPage />
+            </Route>
+            <Route exact path="/:peer_id">
+              <LobbyPage />
             </Route>
           </Switch>
         </Router>

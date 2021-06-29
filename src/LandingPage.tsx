@@ -17,11 +17,13 @@ import {
   Grid,
 } from "@material-ui/core";
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
+import { useHistory } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { PokeGetterContext } from "./PokeGetterContext";
 import { Game, Pokedex } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
+import { usePeerJS } from "./usePeerJS";
 
 /**
  * This is a sub-page of the landing page. Here, we ask the user to
@@ -50,6 +52,16 @@ interface FormState {
 
 function CreateUser() {
   const styles = useCreateStyles();
+
+  /**
+   * @TOOD - Using this to initialize PeerJS, since I don't know
+   * of a better place to put it. This might require a refactor
+   * of how the `usePeerJS` hook
+   *
+   * ~reccanti 6/28/2021
+   */
+  usePeerJS();
+
   const { dispatch } = useContext(AllTheFuckingStateCtx);
   const [state, setState] = useState<FormState>({ name: "" });
 
@@ -89,7 +101,14 @@ function CreateUser() {
 }
 
 /**
- * This is where we'll set up the board for an upcoming game
+ * This is where we'll set up the board for an upcoming game.
+ *
+ * @TODO - This thing is doing so much. It's really bad. A good
+ * first step would be moving this to it's own page. Later,
+ * it might be a good idea to break out some of the state
+ * management into hooks
+ *
+ * ~reccanti 6/28/2021
  */
 
 const useBoardStyles = makeStyles({
@@ -97,7 +116,7 @@ const useBoardStyles = makeStyles({
     padding: "1rem",
     maxWidth: "350px",
     margin: "1rem",
-    "& > *:not(:first-child)": {
+    "& form > *:not(:first-child)": {
       marginTop: "1rem",
     },
   },
@@ -114,6 +133,8 @@ function BoardSetup() {
 
   const { state, dispatch } = useContext(AllTheFuckingStateCtx);
   const getter = useContext(PokeGetterContext);
+
+  const history = useHistory();
 
   const styles = useBoardStyles();
 
@@ -135,6 +156,14 @@ function BoardSetup() {
 
   const handlePokedexChange = (dex: Pokedex) => {
     dispatch({ type: "setBoardPokedex", payload: dex });
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (state.peerjs) {
+      const id = state.peerjs.id;
+      history.push(`/${id}`);
+    }
   };
 
   // fetch state
@@ -168,44 +197,49 @@ function BoardSetup() {
   return (
     <Grid container>
       <Grid container item xs={2}>
-        <Paper component="form" className={styles.root}>
-          <TextField
-            fullWidth
-            label="Board Name"
-            onChange={handleNameChange}
-            value={state.board.name}
-          />
-          <FormControl fullWidth>
-            <InputLabel htmlFor="column-input">Columns</InputLabel>
-            <Input
-              id="column-input"
-              type="number"
-              onChange={handleColumnChange}
-              value={state.board.columns}
+        <Paper className={styles.root}>
+          <form onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="Board Name"
+              onChange={handleNameChange}
+              value={state.board.name}
             />
-          </FormControl>
-          <BetterSelect
-            id="game-select"
-            label="Game"
-            fullWidth
-            data={games}
-            value={state.board.game}
-            getDisplayValue={(d) => d.name}
-            getKeyValue={(d) => d.id}
-            getValue={(d) => d.id}
-            onChange={handleGameChange}
-          />
-          <BetterSelect
-            id="pokedex-select"
-            label="Pokedex"
-            fullWidth
-            data={dexes}
-            value={state.board.pokedex}
-            getDisplayValue={(d) => d.name}
-            getKeyValue={(d) => d.id}
-            getValue={(d) => d.id}
-            onChange={handlePokedexChange}
-          />
+            <FormControl fullWidth>
+              <InputLabel htmlFor="column-input">Columns</InputLabel>
+              <Input
+                id="column-input"
+                type="number"
+                onChange={handleColumnChange}
+                value={state.board.columns}
+              />
+            </FormControl>
+            <BetterSelect
+              id="game-select"
+              label="Game"
+              fullWidth
+              data={games}
+              value={state.board.game}
+              getDisplayValue={(d) => d.name}
+              getKeyValue={(d) => d.id}
+              getValue={(d) => d.id}
+              onChange={handleGameChange}
+            />
+            <BetterSelect
+              id="pokedex-select"
+              label="Pokedex"
+              fullWidth
+              data={dexes}
+              value={state.board.pokedex}
+              getDisplayValue={(d) => d.name}
+              getKeyValue={(d) => d.id}
+              getValue={(d) => d.id}
+              onChange={handlePokedexChange}
+            />
+            <Button type="submit" fullWidth>
+              Get Started!
+            </Button>
+          </form>
         </Paper>
       </Grid>
       <Grid container item xs={10}>
