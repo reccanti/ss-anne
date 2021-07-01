@@ -36,37 +36,39 @@ export function usePeerJS(): PeerJSHook {
     errorCbs.add(cb);
   };
 
-  const { dispatch } = useContext(AllTheFuckingStateCtx);
+  const { state, dispatch } = useContext(AllTheFuckingStateCtx);
 
   /**
    * If a webrtc connection has been defined in the state, return that.
    * Otherwise, create a new instance
    */
   useEffect(() => {
-    const p = new PeerJS();
-    p.on("open", (id) => {
-      openCbs.forEach((onOpen) => {
-        onOpen(id);
-      });
-    });
-    p.on("connection", (dataConnection) => {
-      connectCbs.forEach((onConnect) => {
-        onConnect(dataConnection);
-      });
-      dataConnection.on("data", (data) => {
-        dataCbs.forEach((onData) => {
-          onData(data);
+    if (!state.peerjs) {
+      const p = new PeerJS();
+      p.on("open", (id) => {
+        openCbs.forEach((onOpen) => {
+          onOpen(id);
         });
       });
-    });
-    p.on("error", (err) => {
-      errorCbs.forEach((onError) => {
-        onError(err);
+      p.on("connection", (dataConnection) => {
+        connectCbs.forEach((onConnect) => {
+          onConnect(dataConnection);
+        });
+        dataConnection.on("data", (data) => {
+          dataCbs.forEach((onData) => {
+            onData(data);
+          });
+        });
       });
-    });
+      p.on("error", (err) => {
+        errorCbs.forEach((onError) => {
+          onError(err);
+        });
+      });
 
-    dispatch({ type: "setPeerJS", payload: p });
-  }, [connectCbs, dataCbs, errorCbs, openCbs, dispatch]);
+      dispatch({ type: "setPeerJS", payload: p });
+    }
+  }, [connectCbs, dataCbs, errorCbs, openCbs, dispatch, state]);
 
   return {
     registerOnConnect,

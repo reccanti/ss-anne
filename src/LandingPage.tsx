@@ -7,7 +7,6 @@
 
 import {
   Paper,
-  Container,
   TextField,
   Button,
   makeStyles,
@@ -19,86 +18,12 @@ import {
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { useHistory } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
+import { usePeerJS } from "./PeerJSContext";
 import { PokeGetterContext } from "./PokeGetterContext";
 import { Game, Pokedex } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
-import { usePeerJS } from "./usePeerJS";
-
-/**
- * This is a sub-page of the landing page. Here, we ask the user to
- * select a username before either creating their board or joining
- * someone at a particular instance.
- *
- * @TODO - right now, we only allow the user to create a new board.
- * Users will be able to join directly using a URL provided by the
- * other player once their board is created.
- *
- * ~reccanti 6/20/2021
- */
-const useCreateStyles = makeStyles({
-  root: {
-    padding: "1rem",
-    margin: "1rem",
-    "& *:not(:first-child)": {
-      marginTop: "1rem",
-    },
-  },
-});
-
-interface FormState {
-  name: string;
-}
-
-function CreateUser() {
-  const styles = useCreateStyles();
-
-  /**
-   * @TOOD - Using this to initialize PeerJS, since I don't know
-   * of a better place to put it. This might require a refactor
-   * of how the `usePeerJS` hook
-   *
-   * ~reccanti 6/28/2021
-   */
-  usePeerJS();
-
-  const { dispatch } = useContext(AllTheFuckingStateCtx);
-  const [state, setState] = useState<FormState>({ name: "" });
-
-  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setState({
-      ...state,
-      name: event.target.value,
-    });
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    dispatch({ type: "setPlayer", payload: { name: state.name } });
-    dispatch({
-      type: "setBoardName",
-      payload: { name: `${state.name}'s board` },
-    });
-  };
-
-  return (
-    <Container fixed maxWidth="sm">
-      <Paper className={styles.root}>
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Display Name"
-            onChange={handleNameChange}
-            value={state.name}
-            fullWidth
-          />
-          <Button type="submit" fullWidth>
-            Get Started
-          </Button>
-        </form>
-      </Paper>
-    </Container>
-  );
-}
+import { CreateUser } from "./CreateUserPage";
 
 /**
  * This is where we'll set up the board for an upcoming game.
@@ -136,6 +61,8 @@ function BoardSetup() {
 
   const history = useHistory();
 
+  const { peer } = usePeerJS();
+
   const styles = useBoardStyles();
 
   // handlers
@@ -160,8 +87,8 @@ function BoardSetup() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (state.peerjs) {
-      const id = state.peerjs.id;
+    if (peer) {
+      const id = peer.id;
       history.push(`/${id}`);
     }
   };
@@ -265,7 +192,7 @@ function BoardSetup() {
 
 export function LandingPage() {
   const { state } = useContext(AllTheFuckingStateCtx);
-  if (state.users.player) {
+  if (state.user) {
     return <BoardSetup />;
   }
   return <CreateUser />;

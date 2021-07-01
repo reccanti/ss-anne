@@ -30,19 +30,17 @@ interface BoardConfig {
 // and action for managing this
 
 interface FuckingState {
-  users: {
-    player: User | null;
-    opponent: User | null;
-  };
+  // users: {
+  //   player: User | null;
+  //   opponent: User | null;
+  // };
+  user: User | null;
   board: BoardConfig;
   peerjs: PeerJS | null;
 }
 
 const initialState: FuckingState = {
-  users: {
-    player: null,
-    opponent: null,
-  },
+  user: null,
   /**
    * @TODO - It might make more sense to make this
    * local state in the BoardSetup page, only updating
@@ -80,8 +78,15 @@ interface BaseAction {
   type: string;
 }
 
-interface SetPlayer extends BaseAction {
-  type: "setPlayer";
+// interface SetPlayer extends BaseAction {
+//   type: "setPlayer";
+//   payload: {
+//     name: string;
+//   };
+// }
+
+interface SetUser extends BaseAction {
+  type: "setUser";
   payload: {
     name: string;
   };
@@ -127,7 +132,7 @@ interface SetPeerJS extends BaseAction {
 }
 
 type Action =
-  | SetPlayer
+  | SetUser
   | SetBoardName
   | SetBoardColumns
   | SetBoardGeneration
@@ -138,14 +143,11 @@ type Action =
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
-    case "setPlayer": {
+    case "setUser": {
       return {
         ...state,
-        users: {
-          ...state.users,
-          player: {
-            name: action.payload.name,
-          },
+        user: {
+          name: action.payload.name,
         },
       };
     }
