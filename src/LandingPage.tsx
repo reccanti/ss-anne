@@ -61,7 +61,7 @@ function BoardSetup() {
 
   const history = useHistory();
 
-  const { peer } = usePeerJS();
+  const { id } = usePeerJS();
 
   const styles = useBoardStyles();
 
@@ -87,8 +87,7 @@ function BoardSetup() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (peer) {
-      const id = peer.id;
+    if (id) {
       history.push(`/${id}`);
     }
   };

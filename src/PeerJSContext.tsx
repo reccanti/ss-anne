@@ -2,7 +2,7 @@
  * In this file, we'll handle all the things for connecting
  * and sending data using webrtc
  */
-import { ReactNode, useEffect, useState, useMemo } from "react";
+import { ReactNode, useEffect, useState, useRef, useMemo } from "react";
 import PeerJS from "peerjs";
 import { createCtx } from "./utils/createCtx";
 
@@ -21,7 +21,8 @@ interface PeerJSContext {
   messageById: (id: string, data: any) => void;
   messageAll: (data: any) => void;
   connect: (id: string) => void;
-  peer: null | PeerJS;
+  id: string | null;
+  // peer: null | PeerJS;
 }
 
 const [useCtx, Provider] = createCtx<PeerJSContext>();
@@ -33,7 +34,8 @@ interface Props {
 }
 
 export function PeerJSProvider({ children }: Props) {
-  const [peer, setPeer] = useState<null | PeerJS>(null);
+  const peer = useRef<PeerJS>();
+  const [id, setId] = useState<string | null>(null);
 
   // functions for managing connections
   const connections = useMemo(
@@ -54,10 +56,10 @@ export function PeerJSProvider({ children }: Props) {
   };
 
   const connect = (id: string) => {
-    if (!peer) {
+    if (!peer.current) {
       throw Error("PeerJS must be initialized!!!");
     }
-    const conn = peer.connect(id);
+    const conn = peer.current.connect(id);
     conn.on("data", (data: any) => {
       dataCbs.forEach((onData) => {
         onData(data);
@@ -82,21 +84,21 @@ export function PeerJSProvider({ children }: Props) {
   useEffect(() => {
     const p = new PeerJS();
     p.on("open", (id) => {
+      setId(id);
       openCbs.forEach((onOpen) => {
         onOpen(id);
       });
     });
     p.on("connection", (dataConnection) => {
-      dataConnection.on("data", (data) => {
-        dataCbs.forEach((onData) => {
-          onData(data);
-        });
-      });
+      console.log("new connection");
       dataConnection.on("open", () => {
-        connections.set(dataConnection.peer, dataConnection);
-        connectCbs.forEach((onConnect) => {
-          onConnect(dataConnection);
-        });
+        if (!connections.has(dataConnection.peer)) {
+          connections.set(dataConnection.peer, dataConnection);
+          connectCbs.forEach((onConnect) => {
+            console.log("connected, bitch");
+            onConnect(dataConnection);
+          });
+        }
       });
     });
     p.on("error", (err) => {
@@ -104,11 +106,12 @@ export function PeerJSProvider({ children }: Props) {
         onError(err);
       });
     });
-    setPeer(p);
+    peer.current = p;
   }, [openCbs, connectCbs, errorCbs, dataCbs, connections]);
 
   const value = {
-    peer,
+    // peer: peer.current ?? null,
+    id,
     registerOnOpen,
     registerOnData,
     registerOnConnect,

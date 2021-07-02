@@ -78,13 +78,6 @@ interface BaseAction {
   type: string;
 }
 
-// interface SetPlayer extends BaseAction {
-//   type: "setPlayer";
-//   payload: {
-//     name: string;
-//   };
-// }
-
 interface SetUser extends BaseAction {
   type: "setUser";
   payload: {
@@ -131,6 +124,10 @@ interface SetPeerJS extends BaseAction {
   payload: PeerJS;
 }
 
+interface Clear extends BaseAction {
+  type: "clear";
+}
+
 type Action =
   | SetUser
   | SetBoardName
@@ -139,7 +136,8 @@ type Action =
   | SetBoardPokemon
   | SetBoardGame
   | SetBoardPokedex
-  | SetPeerJS;
+  | SetPeerJS
+  | Clear;
 
 function reducer(state: FuckingState, action: Action): FuckingState {
   switch (action.type) {
@@ -216,6 +214,9 @@ function reducer(state: FuckingState, action: Action): FuckingState {
         ...state,
         peerjs: action.payload,
       };
+    }
+    case "clear": {
+      return initialState;
     }
     default: {
       return state;
