@@ -14,13 +14,14 @@ import {
   Input,
   InputLabel,
   Grid,
+  CircularProgress,
 } from "@material-ui/core";
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { useHistory } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { usePeerJS } from "./PeerJSContext";
 import { PokeGetterContext } from "./PokeGetterContext";
-import { Game, Pokedex } from "./utils/pokeGetter";
+import { Game, Pokedex, Pokemon } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
 import { CreateUser } from "./CreateUserPage";
@@ -50,49 +51,18 @@ const useBoardStyles = makeStyles({
   },
 });
 
-function BoardSetup() {
+// container component for managing board state. Makes sure
+// PeerJS is initialized and manages state for the Board
+function BoardSetupManager() {
   // hooks
 
   const [games, setGames] = useState<Game[]>([]);
   const [dexes, setDexes] = useState<Pokedex[]>([]);
-
   const { state, dispatch } = useContext(AllTheFuckingStateCtx);
   const getter = useContext(PokeGetterContext);
-
   const history = useHistory();
 
-  const { id } = usePeerJS();
-
-  const styles = useBoardStyles();
-
-  // handlers
-
-  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const name = event.target.value;
-    dispatch({ type: "setBoardName", payload: { name } });
-  };
-
-  const handleColumnChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const columns = Number(event.target.value);
-    dispatch({ type: "setBoardColumns", payload: { columns } });
-  };
-
-  const handleGameChange = (game: Game) => {
-    dispatch({ type: "setBoardGame", payload: game });
-  };
-
-  const handlePokedexChange = (dex: Pokedex) => {
-    dispatch({ type: "setBoardPokedex", payload: dex });
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (id) {
-      history.push(`/${id}`);
-    }
-  };
-
-  // fetch state
+  const peerContext = usePeerJS();
 
   useEffect(() => {
     const fetch = async () => {
@@ -118,49 +88,115 @@ function BoardSetup() {
     fetch();
   }, [getter, dispatch, state.board.pokedex]);
 
+  // If PeerJS is ready, initialize all the handler functions,
+  // setup state management, and render the board
+  if (peerContext.status === "ready") {
+    const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+      const name = event.target.value;
+      dispatch({ type: "setBoardName", payload: { name } });
+    };
+
+    const handleColumnChange = (event: ChangeEvent<HTMLInputElement>) => {
+      const columns = Number(event.target.value);
+      dispatch({ type: "setBoardColumns", payload: { columns } });
+    };
+
+    const handleGameChange = (game: Game) => {
+      dispatch({ type: "setBoardGame", payload: game });
+    };
+
+    const handlePokedexChange = (dex: Pokedex) => {
+      dispatch({ type: "setBoardPokedex", payload: dex });
+    };
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (peerContext.id) {
+        history.push(`/${peerContext.id}`);
+      }
+    };
+
+    // fetch state
+    return (
+      <BoardSetup
+        curName={state.board.name}
+        curColumn={state.board.columns}
+        curGame={state.board.game}
+        curPokedex={state.board.pokedex}
+        curPokemon={state.board.pokemon}
+        games={games}
+        pokedex={dexes}
+        onNameChange={handleNameChange}
+        onColumnChange={handleColumnChange}
+        onGameChange={handleGameChange}
+        onPokedexChange={handlePokedexChange}
+        onSubmit={handleSubmit}
+      />
+    );
+  }
+  return <CircularProgress />;
+}
+
+interface BoardSetupProps {
+  curName: string;
+  curColumn: number;
+  curGame: Game;
+  curPokedex: Pokedex;
+  games: Game[];
+  pokedex: Pokedex[];
+  curPokemon: Pokemon[];
+  onNameChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onColumnChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onGameChange: (game: Game) => void;
+  onPokedexChange: (dex: Pokedex) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}
+function BoardSetup(props: BoardSetupProps) {
+  const styles = useBoardStyles();
+
   // render
 
   return (
     <Grid container>
       <Grid container item xs={2}>
         <Paper className={styles.root}>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={props.onSubmit}>
             <TextField
               fullWidth
               label="Board Name"
-              onChange={handleNameChange}
-              value={state.board.name}
+              onChange={props.onNameChange}
+              value={props.curName}
             />
             <FormControl fullWidth>
               <InputLabel htmlFor="column-input">Columns</InputLabel>
               <Input
                 id="column-input"
                 type="number"
-                onChange={handleColumnChange}
-                value={state.board.columns}
+                onChange={props.onColumnChange}
+                value={props.curColumn}
               />
             </FormControl>
             <BetterSelect
               id="game-select"
               label="Game"
               fullWidth
-              data={games}
-              value={state.board.game}
+              data={props.games}
+              value={props.curGame}
               getDisplayValue={(d) => d.name}
               getKeyValue={(d) => d.id}
               getValue={(d) => d.id}
-              onChange={handleGameChange}
+              onChange={props.onGameChange}
             />
             <BetterSelect
               id="pokedex-select"
               label="Pokedex"
               fullWidth
-              data={dexes}
-              value={state.board.pokedex}
+              data={props.pokedex}
+              value={props.curPokedex}
               getDisplayValue={(d) => d.name}
               getKeyValue={(d) => d.id}
               getValue={(d) => d.id}
-              onChange={handlePokedexChange}
+              onChange={props.onPokedexChange}
             />
             <Button type="submit" fullWidth>
               Get Started!
@@ -171,8 +207,8 @@ function BoardSetup() {
       <Grid container item xs={10}>
         <BoardContainer>
           <Board
-            columns={state.board.columns}
-            items={state.board.pokemon}
+            columns={props.curColumn}
+            items={props.curPokemon}
             renderCell={(item) => (
               <Cell key={item.name} variant="unknown">
                 <img
@@ -192,7 +228,7 @@ function BoardSetup() {
 export function LandingPage() {
   const { state } = useContext(AllTheFuckingStateCtx);
   if (state.user) {
-    return <BoardSetup />;
+    return <BoardSetupManager />;
   }
   return <CreateUser />;
 }

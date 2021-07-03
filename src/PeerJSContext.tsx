@@ -2,9 +2,16 @@
  * In this file, we'll handle all the things for connecting
  * and sending data using webrtc
  */
-import { ReactNode, useEffect, useState, useRef, useMemo } from "react";
+import {
+  createContext,
+  ReactNode,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useContext,
+} from "react";
 import PeerJS from "peerjs";
-import { createCtx } from "./utils/createCtx";
 
 type OnOpenCallback = (id: string) => void;
 type OnConnectCallback = (dataConnection: PeerJS.DataConnection) => void;
@@ -13,7 +20,16 @@ type OnDataCallback = (data: any) => void;
 
 type RegisterCallback<T> = (cb: T) => void;
 
-interface PeerJSContext {
+interface BaseState {
+  status: string;
+}
+
+interface Uninitialized extends BaseState {
+  status: "uninitialized";
+}
+
+interface Ready extends BaseState {
+  status: "ready";
   registerOnOpen: RegisterCallback<OnOpenCallback>;
   registerOnConnect: RegisterCallback<OnConnectCallback>;
   registerOnError: RegisterCallback<OnErrorCallback>;
@@ -22,12 +38,15 @@ interface PeerJSContext {
   messageAll: (data: any) => void;
   connect: (id: string) => void;
   id: string | null;
-  // peer: null | PeerJS;
 }
 
-const [useCtx, Provider] = createCtx<PeerJSContext>();
+type PeerJSContext = Uninitialized | Ready;
 
-export const usePeerJS = useCtx;
+const PeerJSContext = createContext<PeerJSContext>({
+  status: "uninitialized",
+});
+
+export const usePeerJS = () => useContext(PeerJSContext);
 
 interface Props {
   children: ReactNode;
@@ -67,16 +86,29 @@ export function PeerJSProvider({ children }: Props) {
     });
   };
 
+  // memoized sets of all the callbacks that have been registered
   const openCbs = useMemo(() => new Set<OnOpenCallback>(), []);
   const dataCbs = useMemo(() => new Set<OnDataCallback>(), []);
   const errorCbs = useMemo(() => new Set<OnErrorCallback>(), []);
   const connectCbs = useMemo(() => new Set<OnConnectCallback>(), []);
 
   // functions to add to our callback arrays
-  const registerOnOpen = (cb: OnOpenCallback) => openCbs.add(cb);
-  const registerOnData = (cb: OnDataCallback) => dataCbs.add(cb);
-  const registerOnConnect = (cb: OnConnectCallback) => connectCbs.add(cb);
-  const registerOnError = (cb: OnErrorCallback) => errorCbs.add(cb);
+  const registerOnOpen = useMemo(
+    () => (cb: OnOpenCallback) => openCbs.add(cb),
+    [openCbs]
+  );
+  const registerOnData = useMemo(
+    () => (cb: OnDataCallback) => dataCbs.add(cb),
+    [dataCbs]
+  );
+  const registerOnConnect = useMemo(
+    () => (cb: OnConnectCallback) => connectCbs.add(cb),
+    [connectCbs]
+  );
+  const registerOnError = useMemo(
+    () => (cb: OnErrorCallback) => errorCbs.add(cb),
+    [errorCbs]
+  );
 
   // here we establish a peerjs connection. Our goal here
   // is to "flatten" some of the complexities so we can
@@ -109,17 +141,24 @@ export function PeerJSProvider({ children }: Props) {
     peer.current = p;
   }, [openCbs, connectCbs, errorCbs, dataCbs, connections]);
 
-  const value = {
-    // peer: peer.current ?? null,
-    id,
-    registerOnOpen,
-    registerOnData,
-    registerOnConnect,
-    registerOnError,
-    messageById,
-    messageAll,
-    connect,
-  };
+  // set the value depending on whether PeerJS has been
+  // properly initialized
+  let value: PeerJSContext = { status: "uninitialized" };
+  if (peer.current && id) {
+    value = {
+      status: "ready",
+      registerOnConnect,
+      registerOnData,
+      registerOnError,
+      registerOnOpen,
+      connect,
+      messageAll,
+      messageById,
+      id,
+    };
+  }
 
-  return <Provider value={value}>{children}</Provider>;
+  return (
+    <PeerJSContext.Provider value={value}>{children}</PeerJSContext.Provider>
+  );
 }

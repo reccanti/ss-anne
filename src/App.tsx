@@ -13,7 +13,7 @@ import {
 } from "./AllTheFuckingState";
 import { PokeGetterProvider } from "./PokeGetterContext";
 import { LandingPage } from "./LandingPage";
-import { LobbyPage } from "./LobbyPage";
+// import { LobbyPage } from "./LobbyPage";
 import { PeerJSProvider } from "./PeerJSContext";
 import { useContext } from "react";
 
@@ -57,9 +57,9 @@ function App() {
                 <Route exact path="/">
                   <LandingPage />
                 </Route>
-                <Route exact path="/:peer_id">
+                {/* <Route exact path="/:peer_id">
                   <LobbyPage />
-                </Route>
+                </Route> */}
               </Switch>
             </Router>
           </Box>
