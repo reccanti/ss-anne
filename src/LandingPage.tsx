@@ -14,7 +14,6 @@ import {
   Input,
   InputLabel,
   Grid,
-  CircularProgress,
 } from "@material-ui/core";
 import { useContext, useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { useHistory } from "react-router";
@@ -90,53 +89,61 @@ function BoardSetupManager() {
 
   // If PeerJS is ready, initialize all the handler functions,
   // setup state management, and render the board
-  if (peerContext.status === "ready") {
-    const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-      const name = event.target.value;
-      dispatch({ type: "setBoardName", payload: { name } });
-    };
+  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const name = event.target.value;
+    dispatch({ type: "setBoardName", payload: { name } });
+  };
 
-    const handleColumnChange = (event: ChangeEvent<HTMLInputElement>) => {
-      const columns = Number(event.target.value);
-      dispatch({ type: "setBoardColumns", payload: { columns } });
-    };
+  const handleColumnChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const columns = Number(event.target.value);
+    dispatch({ type: "setBoardColumns", payload: { columns } });
+  };
 
-    const handleGameChange = (game: Game) => {
-      dispatch({ type: "setBoardGame", payload: game });
-    };
+  const handleGameChange = (game: Game) => {
+    dispatch({ type: "setBoardGame", payload: game });
+  };
 
-    const handlePokedexChange = (dex: Pokedex) => {
-      dispatch({ type: "setBoardPokedex", payload: dex });
-    };
+  const handlePokedexChange = (dex: Pokedex) => {
+    dispatch({ type: "setBoardPokedex", payload: dex });
+  };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (peerContext.id) {
-        history.push(`/${peerContext.id}`);
-      }
-    };
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (peerContext.id) {
+      history.push(`/${peerContext.id}`);
+    }
+  };
 
-    // fetch state
-    return (
-      <BoardSetup
-        curName={state.board.name}
-        curColumn={state.board.columns}
-        curGame={state.board.game}
-        curPokedex={state.board.pokedex}
-        curPokemon={state.board.pokemon}
-        games={games}
-        pokedex={dexes}
-        onNameChange={handleNameChange}
-        onColumnChange={handleColumnChange}
-        onGameChange={handleGameChange}
-        onPokedexChange={handlePokedexChange}
-        onSubmit={handleSubmit}
-      />
-    );
-  }
-  return <CircularProgress />;
+  // fetch state
+  return (
+    <BoardSetup
+      curName={state.board.name}
+      curColumn={state.board.columns}
+      curGame={state.board.game}
+      curPokedex={state.board.pokedex}
+      curPokemon={state.board.pokemon}
+      games={games}
+      pokedex={dexes}
+      onNameChange={handleNameChange}
+      onColumnChange={handleColumnChange}
+      onGameChange={handleGameChange}
+      onPokedexChange={handlePokedexChange}
+      onSubmit={handleSubmit}
+    />
+  );
 }
 
+/**
+ * @TODO - After writing this type definition, I realized that it would
+ * probably be better to break these up into individual "presentation"
+ * components that could better handle the abstracting-away the DOM
+ * events and would make it so that we don't have to create a million
+ * "onTypeChange" props. I think it still makes sense to handle  state
+ * and composition in a single component, since that would allow us to
+ * better coordinate asynchronous data
+ *
+ * ~reccanti 7/3/2021
+ */
 interface BoardSetupProps {
   curName: string;
   curColumn: number;

@@ -33,12 +33,20 @@ interface FormState {
   name: string;
 }
 
-export function CreateUser() {
+interface CreateUserProps {
+  onNameChange?: (name: string) => void;
+  onSubmit?: (data: { name: string }) => void;
+}
+
+export function CreateUser(props: CreateUserProps) {
   const styles = useCreateStyles();
   const { dispatch } = useContext(AllTheFuckingStateCtx);
   const [state, setState] = useState<FormState>({ name: "" });
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (props.onNameChange) {
+      props.onNameChange(event.target.value);
+    }
     setState({
       ...state,
       name: event.target.value,
@@ -47,6 +55,9 @@ export function CreateUser() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (props.onSubmit) {
+      props.onSubmit({ name: state.name });
+    }
     dispatch({ type: "setUser", payload: { name: state.name } });
     dispatch({
       type: "setBoardName",

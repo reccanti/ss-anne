@@ -7,15 +7,13 @@ import {
   Button,
   makeStyles,
   Grid,
-  CircularProgress,
 } from "@material-ui/core";
-// import AddIcon from "@material-ui/icons/Add";
+import AddIcon from "@material-ui/icons/Add";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { CreateUser } from "./CreateUserPage";
 import { usePeerJS } from "./PeerJSContext";
-// import { usePeerJS } from "./PeerJSContext";
 
 /**
  * @TODO - It might make sense to move this to a separate file.
@@ -29,35 +27,37 @@ interface BaseMessage {
   id: string;
 }
 
-interface UserJoined extends BaseMessage {
-  type: "userJoined";
+interface RequestJoin extends BaseMessage {
+  type: "requestJoin";
   id: string;
   payload: {
     name: string;
   };
 }
 
-type Action = UserJoined;
+interface JoinReceived extends BaseMessage {
+  type: "joinReceived";
+  id: string;
+  payload: {
+    name: string;
+  };
+}
+
+type Action = RequestJoin | JoinReceived;
+
+type ActionCallback = (action: Action) => void;
 
 function parseData(data: any): Action | null {
   if (data && data.type) {
     switch (data.type) {
-      case "userJoined":
+      case "requestJoin":
+      case "joinReceived":
         return data as Action;
     }
   }
   return null;
 }
 
-type ActionCallback = (action: Action) => void;
-
-interface BaseState {
-  status: string;
-}
-
-interface Uninitialized extends BaseState {
-  status: "uninitialized";
-}
 interface ActionListenerHook {
   registerActionListener: (listener: ActionCallback) => void;
   sendAction: (id: string, action: Action) => void;
@@ -65,29 +65,36 @@ interface ActionListenerHook {
 
 function useActionListener(): ActionListenerHook {
   const actionCallbacks = useMemo(() => new Set<ActionCallback>(), []);
-  const peerContext = usePeerJS();
+  const { registerOnError, registerOnData, messageById } = usePeerJS();
 
-  if (peerContext.status === "ready") {
-  }
+  const sendAction = useMemo(
+    () => (id: string, action: Action) => messageById(id, action),
+    [messageById]
+  );
 
-  const sendAction = (id: string, action: Action) => messageById(id, action);
-  const registerActionListener = (listener: ActionCallback) => {
-    console.log("registering...");
-    actionCallbacks.add(listener);
-  };
+  const registerActionListener = useMemo(
+    () => (listener: ActionCallback) => {
+      console.log(actionCallbacks.size);
+      actionCallbacks.add(listener);
+    },
+    [actionCallbacks]
+  );
 
-  registerOnError((err) => {
-    console.log(err);
-  });
+  useEffect(() => {
+    registerOnError((err) => {
+      console.log(err);
+    });
 
-  registerOnData((d) => {
-    const action = parseData(d);
-    if (action) {
-      actionCallbacks.forEach((cb) => {
-        cb(action);
-      });
-    }
-  });
+    registerOnData((d) => {
+      const action = parseData(d);
+      console.log("that's an action!!!");
+      if (action) {
+        actionCallbacks.forEach((cb) => {
+          cb(action);
+        });
+      }
+    });
+  }, [actionCallbacks, registerOnData, registerOnError]);
 
   return {
     registerActionListener,
@@ -95,164 +102,163 @@ function useActionListener(): ActionListenerHook {
   };
 }
 
-// /**
-//  * The page where users can join a game
-//  */
+/**
+ * The lobby page where the user can join a page
+ */
 
-// const useStyles = makeStyles((theme) => ({
-//   root: {
-//     padding: theme.spacing(4),
-//     "& > *:not(:first-child)": {
-//       marginTop: theme.spacing(2),
-//     },
-//   },
-//   button: {
-//     margin: theme.spacing(1),
-//     marginLeft: theme.spacing(4),
-//   },
-//   cardGrid: {
-//     marginTop: theme.spacing(2),
-//   },
-//   card: {
-//     width: "100%",
-//   },
-// }));
+const useStyles = makeStyles((theme) => ({
+  root: {
+    padding: theme.spacing(4),
+    "& > *:not(:first-child)": {
+      marginTop: theme.spacing(2),
+    },
+  },
+  button: {
+    margin: theme.spacing(1),
+    marginLeft: theme.spacing(4),
+  },
+  cardGrid: {
+    marginTop: theme.spacing(2),
+  },
+  card: {
+    width: "100%",
+  },
+}));
 
-// function JoinPage() {
-//   const styles = useStyles();
-
-//   const [waitingUsers, setWaitingUsers] = useState<string[]>([]);
-//   const { sendAction, registerActionListener } = useActionListener();
-
-//   const addWatingUser = useMemo(
-//     () => (user: string) => {
-//       setWaitingUsers((w) => [...w, user]);
-//     },
-//     []
-//   );
-
-//   useEffect(() => {
-//     registerActionListener((action: Action) => {
-//       // console.log("an action!!!");
-//       // console.log(action);
-//       switch (action.type) {
-//         case "userJoined": {
-//           addWatingUser(action.payload.name);
-//         }
-//       }
-//     });
-//   }, [registerActionListener, addWatingUser]);
-
-//   // connect to the person whose client you were
-//   // linked to
-//   const { id, connect, registerOnConnect } = usePeerJS();
-//   const { peer_id } = useParams<{ peer_id: string }>();
-//   const { state } = useContext(AllTheFuckingStateCtx);
-//   useEffect(() => {
-//     registerOnConnect((c) => {
-//       if (id && state.user) {
-//         connect(c.peer);
-//         console.log("sending action 'userJoined'");
-//         sendAction(c.peer, {
-//           type: "userJoined",
-//           id,
-//           payload: {
-//             name: state.user.name,
-//           },
-//         });
-//       }
-//     });
-//   }, [peer_id, id, registerOnConnect, sendAction, state.user, connect]);
-//   useEffect(() => {
-//     if (id && peer_id !== id) {
-//       connect(peer_id);
-//     }
-//   }, [peer_id, connect, id]);
-
-//   return (
-//     <Container className={styles.root}>
-//       {/* Section for adding Players */}
-//       <Box component="section">
-//         <Box display="flex">
-//           <Typography variant="h3" component="h1">
-//             Players
-//           </Typography>
-//           <Button
-//             className={styles.button}
-//             color="primary"
-//             variant="contained"
-//             startIcon={<AddIcon />}
-//           >
-//             Join
-//           </Button>
-//         </Box>
-//         <Grid className={styles.cardGrid} container>
-//           <Grid container item xs={2}>
-//             <Card className={styles.card}>
-//               <CardContent>Testing...</CardContent>
-//             </Card>
-//           </Grid>
-//         </Grid>
-//       </Box>
-//       {/*
-//        * Section for people hanging out. This is to ensure we're
-//        * connecting through PeerJS
-//        */}
-//       <Box component="section">
-//         <Box display="flex">
-//           <Typography variant="h3" component="h1">
-//             Hanging Out
-//           </Typography>
-//         </Box>
-//         <Grid className={styles.cardGrid} container>
-//           {waitingUsers.map((user, index) => (
-//             // This is a bad key. Store better info in the User
-//             <Grid key={`${user}_${index}`} container item xs={2}>
-//               <Card className={styles.card}>
-//                 <CardContent>{user}</CardContent>
-//               </Card>
-//             </Grid>
-//           ))}
-//         </Grid>
-//       </Box>
-//       {/* Ready Button */}
-//       <Box>
-//         <Button fullWidth variant="contained" color="primary">
-//           Start Game
-//         </Button>
-//       </Box>
-//     </Container>
-//   );
-// }
-
-function JoinPage() {}
-
-export function LobbyPage() {
-  const [peerReady, setPeerReady] = useState<boolean>(false);
-  const { state } = useContext(AllTheFuckingStateCtx);
-  const { peer_id } = useParams<{ peer_id: string }>();
-  const peerContext = usePeerJS();
-
-  useEffect(() => {
-    if (peerContext.status === "ready") {
-      const { id, connect, registerOnOpen } = peerContext;
-      if (id && peer_id !== id) {
-        registerOnOpen(() => {
-          setPeerReady(true);
-        });
-        connect(peer_id);
-      }
-    }
-  }, [peer_id, peerContext]);
-
-  if (!state.user) {
-    return <CreateUser />;
-  } else {
-    if (peerReady) {
-      return <JoinPage />;
-    }
-  }
-  return <CircularProgress />;
+interface JoinPageProps {
+  waitingUsers: string[];
 }
 
-export {};
+function JoinPage(props: JoinPageProps) {
+  const styles = useStyles();
+
+  return (
+    <Container className={styles.root}>
+      {/* Section for adding Players */}
+      <Box component="section">
+        <Box display="flex">
+          <Typography variant="h3" component="h1">
+            Players
+          </Typography>
+          <Button
+            className={styles.button}
+            color="primary"
+            variant="contained"
+            startIcon={<AddIcon />}
+          >
+            Join
+          </Button>
+        </Box>
+        <Grid className={styles.cardGrid} container>
+          <Grid container item xs={2}>
+            <Card className={styles.card}>
+              <CardContent>Testing...</CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+      {/*
+       * Section for people hanging out. This is to ensure we're
+       * connecting through PeerJS
+       */}
+      <Box component="section">
+        <Box display="flex">
+          <Typography variant="h3" component="h1">
+            Hanging Out
+          </Typography>
+        </Box>
+        <Grid className={styles.cardGrid} container>
+          {props.waitingUsers.map((user, index) => (
+            // This is a bad key. Store better info in the User
+            <Grid key={`${user}_${index}`} container item xs={2}>
+              <Card className={styles.card}>
+                <CardContent>{user}</CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+      {/* Ready Button */}
+      <Box>
+        <Button fullWidth variant="contained" color="primary">
+          Start Game
+        </Button>
+      </Box>
+    </Container>
+  );
+}
+
+export function LobbyPage() {
+  const [waitingUsers, setWaitingUsers] = useState<string[]>([]);
+
+  const addWatingUser = useMemo(
+    () => (user: string) => {
+      setWaitingUsers((w) => [...w, user]);
+    },
+    []
+  );
+
+  const { id, connect, isConnected } = usePeerJS();
+  const { peer_id } = useParams<{ peer_id: string }>();
+  const { state } = useContext(AllTheFuckingStateCtx);
+  const { sendAction, registerActionListener } = useActionListener();
+
+  const handleSubmit = ({ name }: { name: string }) => {
+    sendAction(peer_id, {
+      type: "requestJoin",
+      id,
+      payload: {
+        name,
+      },
+    });
+  };
+
+  // here, we listen for PeerJS actions
+  useEffect(() => {
+    registerActionListener((action: Action) => {
+      switch (action.type) {
+        case "joinReceived": {
+          addWatingUser(action.payload.name);
+          break;
+        }
+        case "requestJoin": {
+          addWatingUser(action.payload.name);
+          if (state.user) {
+            sendAction(action.id, {
+              type: "joinReceived",
+              id,
+              payload: { name: state.user.name },
+            });
+          }
+          break;
+        }
+      }
+    });
+  }, [registerActionListener, addWatingUser, id, sendAction, state.user]);
+
+  useEffect(() => {
+    const listen = async () => {
+      try {
+        if (state.user && peer_id !== id) {
+          if (!isConnected(peer_id)) {
+            const conn = await connect(peer_id);
+            console.log("sending the action...");
+            sendAction(conn.peer, {
+              type: "requestJoin",
+              id,
+              payload: { name: state.user.name },
+            });
+          }
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    listen();
+  }, [sendAction, connect, id, isConnected, peer_id, state.user]);
+
+  if (!state.user) {
+    return <CreateUser onSubmit={handleSubmit} />;
+  }
+  return <JoinPage waitingUsers={waitingUsers} />;
+}

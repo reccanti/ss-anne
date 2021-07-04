@@ -4,7 +4,13 @@ import {
   Route,
   useHistory,
 } from "react-router-dom";
-import { Toolbar, AppBar, IconButton, Box } from "@material-ui/core";
+import {
+  Toolbar,
+  AppBar,
+  IconButton,
+  Box,
+  CircularProgress,
+} from "@material-ui/core";
 import { Home } from "@material-ui/icons";
 
 import {
@@ -13,8 +19,12 @@ import {
 } from "./AllTheFuckingState";
 import { PokeGetterProvider } from "./PokeGetterContext";
 import { LandingPage } from "./LandingPage";
-// import { LobbyPage } from "./LobbyPage";
-import { PeerJSProvider } from "./PeerJSContext";
+import { LobbyPage } from "./LobbyPage";
+import {
+  PeerJSProvider,
+  PeerJSStatusProvider,
+  usePeerJSStatus,
+} from "./PeerJSContext";
 import { useContext } from "react";
 
 function Debug() {
@@ -38,8 +48,12 @@ function Debug() {
 }
 
 function App() {
+  const status = usePeerJSStatus();
+  if (status.status === "uninitialized") {
+    return <CircularProgress />;
+  }
   return (
-    <PeerJSProvider>
+    <PeerJSProvider context={status.context}>
       <AllTheFuckingStateProvider>
         <PokeGetterProvider lang="en">
           <Box>
@@ -57,9 +71,9 @@ function App() {
                 <Route exact path="/">
                   <LandingPage />
                 </Route>
-                {/* <Route exact path="/:peer_id">
+                <Route exact path="/:peer_id">
                   <LobbyPage />
-                </Route> */}
+                </Route>
               </Switch>
             </Router>
           </Box>
@@ -69,4 +83,12 @@ function App() {
   );
 }
 
-export default App;
+function AppInitialization() {
+  return (
+    <PeerJSStatusProvider>
+      <App />
+    </PeerJSStatusProvider>
+  );
+}
+
+export default AppInitialization;

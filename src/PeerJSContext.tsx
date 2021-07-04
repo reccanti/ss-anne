@@ -11,7 +11,8 @@ import {
   useMemo,
   useContext,
 } from "react";
-import PeerJS from "peerjs";
+import PeerJS, { DataConnection } from "peerjs";
+import { createCtx } from "./utils/createCtx";
 
 type OnOpenCallback = (id: string) => void;
 type OnConnectCallback = (dataConnection: PeerJS.DataConnection) => void;
@@ -24,35 +25,60 @@ interface BaseState {
   status: string;
 }
 
-interface Uninitialized extends BaseState {
-  status: "uninitialized";
-}
-
-interface Ready extends BaseState {
-  status: "ready";
+interface PeerJSContext {
   registerOnOpen: RegisterCallback<OnOpenCallback>;
   registerOnConnect: RegisterCallback<OnConnectCallback>;
   registerOnError: RegisterCallback<OnErrorCallback>;
   registerOnData: RegisterCallback<OnDataCallback>;
   messageById: (id: string, data: any) => void;
   messageAll: (data: any) => void;
-  connect: (id: string) => void;
-  id: string | null;
+  connect: (id: string) => Promise<DataConnection>;
+  isConnected: (id: string) => boolean;
+  id: string;
 }
 
-type PeerJSContext = Uninitialized | Ready;
+const [useCtx, BasePeerJSProvider] = createCtx<PeerJSContext>();
 
-const PeerJSContext = createContext<PeerJSContext>({
+export const usePeerJS = useCtx;
+
+interface PeerJSProviderProps {
+  children: ReactNode;
+  context: PeerJSContext;
+}
+
+export function PeerJSProvider({ children, context }: PeerJSProviderProps) {
+  return <BasePeerJSProvider value={context}>{children}</BasePeerJSProvider>;
+}
+
+/**
+ * PeerJS requires some setup before it's ready for use, so this is
+ * used to initialize PeerJS in an asynchronous way. Once it's
+ * ready, we can use this to pass the context down to the main
+ * PeerJS context. This way, we can ensure that PeerJS will always
+ * be ready and we won't have to do any weird typechecking
+ */
+interface Uninitialized extends BaseState {
+  status: "uninitialized";
+}
+
+interface Ready extends BaseState {
+  status: "ready";
+  context: PeerJSContext;
+}
+
+type PeerJSStatus = Uninitialized | Ready;
+
+const PeerJSStatusContext = createContext<PeerJSStatus>({
   status: "uninitialized",
 });
 
-export const usePeerJS = () => useContext(PeerJSContext);
+export const usePeerJSStatus = () => useContext(PeerJSStatusContext);
 
-interface Props {
+interface PeerJSStatusProviderProps {
   children: ReactNode;
 }
 
-export function PeerJSProvider({ children }: Props) {
+export function PeerJSStatusProvider({ children }: PeerJSStatusProviderProps) {
   const peer = useRef<PeerJS>();
   const [id, setId] = useState<string | null>(null);
 
@@ -61,30 +87,6 @@ export function PeerJSProvider({ children }: Props) {
     () => new Map<string, PeerJS.DataConnection>(),
     []
   );
-  const messageById = (id: string, data: any) => {
-    const conn = connections.get(id);
-    if (conn) {
-      conn.send(data);
-    }
-  };
-  const messageAll = (data: any) => {
-    const conns = Array.from(connections.values());
-    conns.forEach((conn) => {
-      conn.send(data);
-    });
-  };
-
-  const connect = (id: string) => {
-    if (!peer.current) {
-      throw Error("PeerJS must be initialized!!!");
-    }
-    const conn = peer.current.connect(id);
-    conn.on("data", (data: any) => {
-      dataCbs.forEach((onData) => {
-        onData(data);
-      });
-    });
-  };
 
   // memoized sets of all the callbacks that have been registered
   const openCbs = useMemo(() => new Set<OnOpenCallback>(), []);
@@ -110,6 +112,63 @@ export function PeerJSProvider({ children }: Props) {
     [errorCbs]
   );
 
+  const messageById = useMemo(
+    () => (id: string, data: any) => {
+      const conn = connections.get(id);
+      if (conn) {
+        conn.send(data);
+      }
+    },
+    [connections]
+  );
+  const messageAll = useMemo(
+    () => (data: any) => {
+      const conns = Array.from(connections.values());
+      conns.forEach((conn) => {
+        conn.send(data);
+      });
+    },
+    [connections]
+  );
+
+  const isConnected = useMemo(
+    () => (id: string) => {
+      return connections.has(id);
+    },
+    [connections]
+  );
+
+  const connect = useMemo(
+    () => async (id: string) => {
+      if (!peer.current) {
+        throw Error("PeerJS must be initialized!!!");
+      }
+      const conn = peer.current.connect(id);
+      return new Promise<DataConnection>((resolve, reject) => {
+        conn.on("open", () => {
+          if (!isConnected(conn.peer)) {
+            connections.set(conn.peer, conn);
+            conn.on("data", (data: any) => {
+              console.log("that's a data...");
+              dataCbs.forEach((onData) => {
+                onData(data);
+              });
+            });
+            // connectCbs.forEach((onConnect) => {
+            //   console.log("connected, bitch");
+            //   onConnect(conn);
+            // });
+            resolve(conn);
+          }
+        });
+        conn.on("error", (err) => {
+          reject(err);
+        });
+      });
+    },
+    [dataCbs, isConnected, connections]
+  );
+
   // here we establish a peerjs connection. Our goal here
   // is to "flatten" some of the complexities so we can
   // construct APIs on top of it.
@@ -121,17 +180,20 @@ export function PeerJSProvider({ children }: Props) {
         onOpen(id);
       });
     });
-    p.on("connection", (dataConnection) => {
-      console.log("new connection");
-      dataConnection.on("open", () => {
-        if (!connections.has(dataConnection.peer)) {
-          connections.set(dataConnection.peer, dataConnection);
-          connectCbs.forEach((onConnect) => {
-            console.log("connected, bitch");
-            onConnect(dataConnection);
+    p.on("connection", (c) => {
+      console.log("someone wants to connect to me ❤️");
+      if (!isConnected(c.peer)) {
+        connections.set(c.peer, c);
+        c.on("data", (data: any) => {
+          console.log("that's a data...");
+          dataCbs.forEach((onData) => {
+            onData(data);
           });
-        }
-      });
+        });
+        connectCbs.forEach((cb) => {
+          cb(c);
+        });
+      }
     });
     p.on("error", (err) => {
       errorCbs.forEach((onError) => {
@@ -139,26 +201,31 @@ export function PeerJSProvider({ children }: Props) {
       });
     });
     peer.current = p;
-  }, [openCbs, connectCbs, errorCbs, dataCbs, connections]);
+  }, [openCbs, connectCbs, errorCbs, dataCbs, connections, isConnected]);
 
   // set the value depending on whether PeerJS has been
   // properly initialized
-  let value: PeerJSContext = { status: "uninitialized" };
+  let value: PeerJSStatus = { status: "uninitialized" };
   if (peer.current && id) {
     value = {
       status: "ready",
-      registerOnConnect,
-      registerOnData,
-      registerOnError,
-      registerOnOpen,
-      connect,
-      messageAll,
-      messageById,
-      id,
+      context: {
+        registerOnConnect,
+        registerOnData,
+        registerOnError,
+        registerOnOpen,
+        connect,
+        isConnected,
+        messageAll,
+        messageById,
+        id,
+      },
     };
   }
 
   return (
-    <PeerJSContext.Provider value={value}>{children}</PeerJSContext.Provider>
+    <PeerJSStatusContext.Provider value={value}>
+      {children}
+    </PeerJSStatusContext.Provider>
   );
 }
