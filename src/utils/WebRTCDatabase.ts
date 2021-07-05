@@ -16,7 +16,7 @@ interface Conn {
 
 // Diff stuff
 
-interface Diff<Data extends object, Action extends Object> {
+interface Diff<Data extends object, Action extends object> {
   id: string; // base64-encoded string identifying this particular diff
   timestamp: number; // when was this update applied
   author: string; // PeerID of the user who made this update
@@ -56,13 +56,13 @@ interface BaseDBMessage {
   type: string;
 }
 
-interface SendUpdate<Data extends Object, Action extends Object>
+interface SendUpdate<Data extends object, Action extends object>
   extends BaseDBMessage {
   type: "sendUpdate";
   updates: Diff<Data, Action>[];
 }
 
-interface SendInternals<Data extends Object, Action extends Object> {
+interface SendInternals<Data extends object, Action extends object> {
   type: "sendInternals";
   connectionIDs: string[];
   diffStack: Diff<Data, Action>[];
@@ -77,11 +77,14 @@ interface SendConnections {
   connections: string[];
 }
 
-type Message<Data extends Object, Action extends Object> =
+type Message<Data extends object, Action extends object> =
   | SendUpdate<Data, Action>
   | SendInternals<Data, Action>
   | RequestInternals
   | SendConnections;
+
+type OnConnectCB = (conn: Conn) => void;
+type OnChangeCB<Data extends object> = (data: Data) => void;
 
 export class WebRTCDatabase<Data extends object, Action extends object> {
   private peer: PeerJS;
@@ -90,6 +93,9 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
   private diffStack: Diff<Data, Action>[] = [];
   private diffLookup: Set<string> = new Set();
   private reducer: (data: Data, action: Action) => Data;
+
+  private onConnectCallbacks: Set<OnConnectCB> = new Set();
+  private onChangeCallbacks: Set<OnChangeCB<Data>> = new Set();
 
   public get id(): string {
     return this.peer.id;
@@ -108,8 +114,15 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     this.setState(initialState);
   }
 
+  /**
+   * A function for managing state updates, so we can make sure
+   * we're grouping all necessary procedures
+   */
   private setState(state: Data) {
     this.state = state;
+    this.onChangeCallbacks.forEach((cb) => {
+      cb(state);
+    });
   }
 
   /**
@@ -139,6 +152,9 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
         connection: conn,
       };
       this.connections.set(conn.peer, fullConn);
+      this.onConnectCallbacks.forEach((cb) => {
+        cb(fullConn);
+      });
       resolve(fullConn);
     });
   }
@@ -406,5 +422,21 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
    */
   getState() {
     return this.state;
+  }
+
+  /**
+   * Functions for managing calbacks
+   */
+  regiserOnConnect(cb: OnConnectCB) {
+    this.onConnectCallbacks.add(cb);
+  }
+  removeOnConnect(cb: OnConnectCB) {
+    this.onConnectCallbacks.delete(cb);
+  }
+  registerOnChange(cb: OnChangeCB<Data>) {
+    this.onChangeCallbacks.add(cb);
+  }
+  removeOnChange(cb: OnChangeCB<Data>) {
+    this.onChangeCallbacks.delete(cb);
   }
 }

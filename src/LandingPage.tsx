@@ -61,7 +61,7 @@ function BoardSetupManager() {
   const getter = useContext(PokeGetterContext);
   const history = useHistory();
 
-  const peerContext = usePeerJS();
+  const peer = usePeerJS();
 
   useEffect(() => {
     const fetch = async () => {
@@ -109,8 +109,8 @@ function BoardSetupManager() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (peerContext.id) {
-      history.push(`/${peerContext.id}`);
+    if (peer.id) {
+      history.push(`/${peer.id}`);
     }
   };
 
