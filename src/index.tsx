@@ -1,9 +1,80 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { CssBaseline, StylesProvider } from "@material-ui/core";
+import { WebRTCDatabase } from "./utils/WebRTCDatabase";
+
+interface State {
+  [name: string]: number;
+}
+
+interface BaseAction {
+  type: string;
+}
+
+interface AddPerson extends BaseAction {
+  type: "addPerson";
+  payload: {
+    name: string;
+    age: number;
+  };
+}
+
+interface RemovePerson extends BaseAction {
+  type: "removePerson";
+  payload: {
+    name: string;
+  };
+}
+
+interface EditAge extends BaseAction {
+  type: "editAge";
+  payload: {
+    name: string;
+    age: number;
+  };
+}
+
+type Action = AddPerson | RemovePerson | EditAge;
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "addPerson": {
+      return {
+        ...state,
+        [action.payload.name]: action.payload.age,
+      };
+    }
+    case "removePerson": {
+      const newState = { ...state };
+      delete newState[action.payload.name];
+      return newState;
+    }
+    case "editAge": {
+      return {
+        ...state,
+        [action.payload.name]: action.payload.age,
+      };
+    }
+  }
+  return state;
+}
+
+// @ts-ignore
+window.coolDB = new WebRTCDatabase<State, Action>({}, reducer);
+
+// @ts-ignore
+window.addPerson = (name: string, age: number) => {
+  // @ts-ignore
+  window.coolDB.update({
+    type: "addPerson",
+    payload: {
+      name,
+      age,
+    },
+  });
+};
 
 ReactDOM.render(
   <React.StrictMode>

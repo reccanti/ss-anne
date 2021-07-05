@@ -191,7 +191,7 @@ function JoinPage(props: JoinPageProps) {
 export function LobbyPage() {
   const [waitingUsers, setWaitingUsers] = useState<string[]>([]);
 
-  const addWatingUser = useMemo(
+  const addWaitingUser = useMemo(
     () => (user: string) => {
       setWaitingUsers((w) => [...w, user]);
     },
@@ -218,11 +218,11 @@ export function LobbyPage() {
     registerActionListener((action: Action) => {
       switch (action.type) {
         case "joinReceived": {
-          addWatingUser(action.payload.name);
+          addWaitingUser(action.payload.name);
           break;
         }
         case "requestJoin": {
-          addWatingUser(action.payload.name);
+          addWaitingUser(action.payload.name);
           if (state.user) {
             sendAction(action.id, {
               type: "joinReceived",
@@ -234,7 +234,7 @@ export function LobbyPage() {
         }
       }
     });
-  }, [registerActionListener, addWatingUser, id, sendAction, state.user]);
+  }, [registerActionListener, addWaitingUser, id, sendAction, state.user]);
 
   useEffect(() => {
     const listen = async () => {

@@ -1,6 +1,14 @@
 /**
  * In this file, we'll handle all the things for connecting
  * and sending data using webrtc
+ *
+ * @TODO - WebRTC is pretty difficult to manage across multiple
+ * clients, so maybe it would be better to make some sort of
+ * WebRTCState object. This would be an object that listens
+ * for new connections and automatically updates/syncs the state
+ * across all clients
+ *
+ * ~reccanti 7/3/2021
  */
 import {
   createContext,
@@ -56,6 +64,12 @@ export function PeerJSProvider({ children, context }: PeerJSProviderProps) {
  * ready, we can use this to pass the context down to the main
  * PeerJS context. This way, we can ensure that PeerJS will always
  * be ready and we won't have to do any weird typechecking
+ *
+ * @TODO - This seems like something that would be helpful for some
+ * of the things in AllTheFuckingState. I wonder if there's a way to
+ * make this more generic, or maybe even an @METEORCITY_CANDIDATE
+ *
+ * ~reccanti 7/3/2021
  */
 interface Uninitialized extends BaseState {
   status: "uninitialized";
