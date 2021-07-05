@@ -70,13 +70,18 @@ interface SendInternals<Data extends Object, Action extends Object> {
 
 interface RequestInternals {
   type: "requestInternals";
-  id: string;
+}
+
+interface SendConnections {
+  type: "sendConnections";
+  connections: string[];
 }
 
 type Message<Data extends Object, Action extends Object> =
   | SendUpdate<Data, Action>
   | SendInternals<Data, Action>
-  | RequestInternals;
+  | RequestInternals
+  | SendConnections;
 
 export class WebRTCDatabase<Data extends object, Action extends object> {
   private peer: PeerJS;
@@ -100,7 +105,11 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       this.setupConnection(conn);
     });
     this.reducer = reducer;
-    this.state = initialState;
+    this.setState(initialState);
+  }
+
+  private setState(state: Data) {
+    this.state = state;
   }
 
   /**
@@ -111,7 +120,10 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     return new Promise<Conn>((resolve, reject) => {
       // setup listeners
       conn.on("data", async (data) => {
-        await this.setupMessageListener(data as Message<Data, Action>);
+        await this.setupMessageListener(
+          conn.peer,
+          data as Message<Data, Action>
+        );
       });
       conn.on("error", (err) => {
         reject(err);
@@ -131,7 +143,10 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     });
   }
 
-  private async setupMessageListener(message: Message<Data, Action>) {
+  private async setupMessageListener(
+    id: string,
+    message: Message<Data, Action>
+  ) {
     switch (message.type) {
       case "sendUpdate": {
         // this should be an array of diffs in chronological order
@@ -152,8 +167,8 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
         break;
       }
       case "requestInternals": {
-        if (this.connections.has(message.id)) {
-          const conn = this.connections.get(message.id) as Conn;
+        if (this.connections.has(id)) {
+          const conn = this.connections.get(id) as Conn;
           const connectionIDs = Array.from(this.connections.keys());
           const diffStack = this.diffStack;
           this.message(conn, {
@@ -165,8 +180,6 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
         break;
       }
       case "sendInternals": {
-        console.log("eyy, some internals!!!");
-        console.log(message);
         // connect to all the ids passed
         const connectPromises = message.connectionIDs
           .filter((id) => id !== this.id)
@@ -174,12 +187,17 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
         await Promise.all(connectPromises);
 
         // update the state
-        // message.diffStack.forEach(diff => {
-        //   this.update(diff.action)
-        // })
-        // message.diffStack.forEach()
         this.applyDiffs(message.diffStack);
+        message.diffStack.forEach((diff) => {
+          this.diffLookup.add(diff.id);
+        });
         break;
+      }
+      case "sendConnections": {
+        const connPromises = message.connections
+          .filter((id) => !this.connections.has(id))
+          .map((id) => this.connect(id));
+        await Promise.all(connPromises);
       }
     }
   }
@@ -221,6 +239,14 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       this.diffStack[0].timestamp > head.timestamp
     ) {
       const entry = this.diffStack.shift() as Diff<Data, Action>;
+      /**
+       * @TODO - Maybe find a safer way to do this that doesn't involve
+       * mutating state within this function? A better solution may be
+       * to create a "getRewoundState" method that finds the state
+       * before a given timestamp
+       *
+       * ~reccanti 7/5/2021
+       */
       this.state = entry.prevState;
       diffsToApply.push(entry);
     }
@@ -258,11 +284,9 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       diff.prevState = prevState;
       prevState = this.reducer(prevState, diff.action);
       this.diffStack.unshift(diff);
-      console.log("added to diffStack");
-      console.log(this.diffStack);
     });
 
-    this.state = prevState;
+    this.setState(prevState);
   }
 
   /**
@@ -310,14 +334,19 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
    * Connect to a database with a given Peer ID
    */
   async connect(id: string): Promise<Conn> {
-    console.log("connecting");
     return new Promise<Conn>((resolve, reject) => {
       const conn = this.peer.connect(id);
-      console.log("connection created");
       conn.on("open", async () => {
-        console.log("open!");
         const fullConn = await this.setupConnection(conn);
-        console.log("a full connection");
+        // let all the other connections know that there's a new
+        // connection that's been added
+        const allConns = Array.from(this.connections.keys());
+        this.connections.forEach((conn) => {
+          this.message(conn, {
+            type: "sendConnections",
+            connections: allConns,
+          });
+        });
         resolve(fullConn);
       });
       conn.on("error", (err) => {
@@ -326,10 +355,14 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     });
   }
 
+  /**
+   * Given a database with a simlar configuration, this will
+   * fetch the state from an external database and copy it to
+   * this database
+   */
   async clone(id: string) {
     const conn = await this.connect(id);
-    console.log("got the connection");
-    this.message(conn, { type: "requestInternals", id: this.id });
+    this.message(conn, { type: "requestInternals" });
   }
 
   /**
