@@ -76,6 +76,18 @@ window.addPerson = (name: string, age: number) => {
   });
 };
 
+// @ts-ignore
+window.setupDB = () => {
+  // @ts-ignore
+  window.addPerson("Melissa", 90);
+  // @ts-ignore
+  window.addPerson("Hasan", 32);
+  // @ts-ignore
+  window.addPerson("Kartik", 80);
+  // @ts-ignore
+  console.log(coolDB.id);
+};
+
 ReactDOM.render(
   <React.StrictMode>
     <StylesProvider>

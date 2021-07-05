@@ -52,6 +52,32 @@ function sortDiffLeastToGreatest<
 //   }
 // }
 
+interface BaseDBMessage {
+  type: string;
+}
+
+interface SendUpdate<Data extends Object, Action extends Object>
+  extends BaseDBMessage {
+  type: "sendUpdate";
+  updates: Diff<Data, Action>[];
+}
+
+interface SendInternals<Data extends Object, Action extends Object> {
+  type: "sendInternals";
+  connectionIDs: string[];
+  diffStack: Diff<Data, Action>[];
+}
+
+interface RequestInternals {
+  type: "requestInternals";
+  id: string;
+}
+
+type Message<Data extends Object, Action extends Object> =
+  | SendUpdate<Data, Action>
+  | SendInternals<Data, Action>
+  | RequestInternals;
+
 export class WebRTCDatabase<Data extends object, Action extends object> {
   private peer: PeerJS;
   private state: Data = {} as Data;
@@ -77,40 +103,102 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     this.state = initialState;
   }
 
-  // this is a utility function so that we can share logic for
-  // setting up connections
-  private setupConnection(conn: DataConnection) {
-    conn.on("data", (data) => {
-      // this should be an array of diffs in chronological order
-      const diffs = data as Diff<Data, Action>[];
+  /**
+   * this is a utility function so that we can share logic for
+   * setting up connections
+   */
+  private async setupConnection(conn: DataConnection): Promise<Conn> {
+    return new Promise<Conn>((resolve, reject) => {
+      // setup listeners
+      conn.on("data", async (data) => {
+        await this.setupMessageListener(data as Message<Data, Action>);
+      });
+      conn.on("error", (err) => {
+        reject(err);
+      });
+      conn.on("close", () => {
+        console.log(`See ya ${conn.peer}`);
+        this.connections.delete(conn.peer);
+      });
 
-      // filter out diffs that already exist
-      const filtered = diffs.filter((diff) => !this.diffLookup.has(diff.id));
-
-      if (filtered.length > 0) {
-        // add these new diffs to the lookup
-        filtered.forEach((diff) => {
-          this.diffLookup.add(diff.id);
-        });
-
-        // apply only the "new" diffs
-        this.applyDiffs(filtered);
-      }
-    });
-
-    // add this to our list of connections
-    this.connections.set(conn.peer, {
-      lastUpdated: null,
-      connection: conn,
+      // add this to our list of connections
+      const fullConn = {
+        lastUpdated: null,
+        connection: conn,
+      };
+      this.connections.set(conn.peer, fullConn);
+      resolve(fullConn);
     });
   }
 
+  private async setupMessageListener(message: Message<Data, Action>) {
+    switch (message.type) {
+      case "sendUpdate": {
+        // this should be an array of diffs in chronological order
+        const diffs = message.updates;
+
+        // filter out diffs that already exist
+        const filtered = diffs.filter((diff) => !this.diffLookup.has(diff.id));
+
+        if (filtered.length > 0) {
+          // add these new diffs to the lookup
+          filtered.forEach((diff) => {
+            this.diffLookup.add(diff.id);
+          });
+
+          // apply only the "new" diffs
+          this.applyDiffs(filtered);
+        }
+        break;
+      }
+      case "requestInternals": {
+        if (this.connections.has(message.id)) {
+          const conn = this.connections.get(message.id) as Conn;
+          const connectionIDs = Array.from(this.connections.keys());
+          const diffStack = this.diffStack;
+          this.message(conn, {
+            type: "sendInternals",
+            connectionIDs,
+            diffStack,
+          });
+        }
+        break;
+      }
+      case "sendInternals": {
+        console.log("eyy, some internals!!!");
+        console.log(message);
+        // connect to all the ids passed
+        const connectPromises = message.connectionIDs
+          .filter((id) => id !== this.id)
+          .map((id) => this.connect(id));
+        await Promise.all(connectPromises);
+
+        // update the state
+        // message.diffStack.forEach(diff => {
+        //   this.update(diff.action)
+        // })
+        // message.diffStack.forEach()
+        this.applyDiffs(message.diffStack);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Utility function for getting the diffs to apply if
+   * there are no diffs in the diff stack. Used as part of
+   * `applyDiffs`
+   */
   private getDiffsToApplyEmpty(
     diffs: Diff<Data, Action>[]
   ): Diff<Data, Action>[] {
     return diffs.sort(sortDiffLeastToGreatest);
   }
 
+  /**
+   * Utility function for getting diffs if there is at least
+   * one diff in the diff stack. Used as part of `applyDiffs`
+   */
   private getDiffsToApplyMany(
     diffs: Diff<Data, Action>[]
   ): Diff<Data, Action>[] {
@@ -151,19 +239,15 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
    * the state and apply diffs sequentially
    */
   private applyDiffs(diffs: Diff<Data, Action>[]) {
-    const filtered = diffs.filter((diff) => this.diffLookup.has(diff.id));
+    // const filtered = diffs.filter((diff) => !this.diffLookup.has(diff.id));
 
+    // get the number of diffs we need to apply to the diff stack
     let diffsToApply: Diff<Data, Action>[] = [];
     if (this.diffStack.length === 0) {
-      diffsToApply = this.getDiffsToApplyEmpty(filtered);
+      diffsToApply = this.getDiffsToApplyEmpty(diffs);
     } else {
-      diffsToApply = this.getDiffsToApplyMany(filtered);
+      diffsToApply = this.getDiffsToApplyMany(diffs);
     }
-
-    // filter out diffs that already exist
-    // const filtered = diffsToApply.filter((diff) =>
-    //   this.diffLookup.has(diff.id)
-    // );
 
     // now that we have a list of diffs to apply:
     // 1. cycle through them and apply the action to the reducer
@@ -174,12 +258,21 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       diff.prevState = prevState;
       prevState = this.reducer(prevState, diff.action);
       this.diffStack.unshift(diff);
+      console.log("added to diffStack");
+      console.log(this.diffStack);
     });
 
     this.state = prevState;
   }
 
+  /**
+   * Utility function to get all the diffs since
+   * a specific timestamp
+   */
   private getAllDiffsSince(timestamp: number): Diff<Data, Action>[] {
+    if (this.diffStack.length === 0) {
+      return [];
+    }
     const diffs: Diff<Data, Action>[] = [];
     let [cur, ...rest] = this.diffStack;
     while (cur.timestamp > timestamp) {
@@ -189,6 +282,10 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     return diffs;
   }
 
+  /**
+   * Figure out what diffs need to be applied to all
+   * the connections
+   */
   private syncConnections() {
     this.connections.forEach((conn) => {
       let diffs: Diff<Data, Action>[] = [];
@@ -197,17 +294,31 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       } else {
         diffs = [...this.diffStack].reverse();
       }
-      conn.lastUpdated = new Date().getTime();
-      conn.connection.send(diffs);
+      this.message(conn, { type: "sendUpdate", updates: diffs });
     });
   }
 
-  async connect(id: string) {
-    return new Promise<void>((resolve, reject) => {
+  /**
+   * Just a utility function to handle messaging connections
+   */
+  private message(conn: Conn, message: Message<Data, Action>) {
+    conn.lastUpdated = new Date().getTime();
+    conn.connection.send(message);
+  }
+
+  /**
+   * Connect to a database with a given Peer ID
+   */
+  async connect(id: string): Promise<Conn> {
+    console.log("connecting");
+    return new Promise<Conn>((resolve, reject) => {
       const conn = this.peer.connect(id);
-      conn.on("open", () => {
-        this.setupConnection(conn);
-        resolve();
+      console.log("connection created");
+      conn.on("open", async () => {
+        console.log("open!");
+        const fullConn = await this.setupConnection(conn);
+        console.log("a full connection");
+        resolve(fullConn);
       });
       conn.on("error", (err) => {
         reject(err);
@@ -215,6 +326,16 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     });
   }
 
+  async clone(id: string) {
+    const conn = await this.connect(id);
+    console.log("got the connection");
+    this.message(conn, { type: "requestInternals", id: this.id });
+  }
+
+  /**
+   * Update the state with an action, store the diff,
+   * and update connected databases
+   */
   update(action: Action) {
     // construct the necessary fields
     const timestamp = new Date().getTime();
@@ -247,6 +368,9 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
     this.syncConnections();
   }
 
+  /**
+   * Get the state of the database
+   */
   getState() {
     return this.state;
   }
