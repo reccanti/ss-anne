@@ -34,7 +34,7 @@ interface Join extends BaseAction {
 
 interface Leave extends BaseAction {
   type: "leave";
-  player: Player;
+  id: string;
 }
 
 interface Ready extends BaseAction {
@@ -66,7 +66,7 @@ function reducer(state: State, action: Action): State {
     case "leave": {
       return {
         ...state,
-        waiting: state.waiting.filter((w) => w.id !== action.player.id),
+        waiting: state.waiting.filter((w) => w.id !== action.id),
       };
     }
     default: {
@@ -93,7 +93,7 @@ const SharedDataContext = createContext<null | SharedData>(null);
 interface SharedDataInterface {
   // methods for interacting with data
   join: (player: Player) => void;
-  leave: (player: Player) => void;
+  leave: (id: string) => void;
   ready: (player: Player) => void;
   notReady: (player: Player) => void;
 
@@ -104,11 +104,16 @@ interface SharedDataInterface {
   clone: (id: string) => Promise<void>;
 }
 
-export function useSharedData(): SharedDataInterface {
+function useBaseSharedData(): SharedData {
   const db = useContext(SharedDataContext);
   if (!db) {
     throw new Error("useSharedData must be used within a SharedDataProvider");
   }
+  return db;
+}
+
+export function useSharedData(): SharedDataInterface {
+  const db = useBaseSharedData();
 
   // handle state changes
   const [state, setState] = useState<State>(db.getState());
@@ -129,8 +134,8 @@ export function useSharedData(): SharedDataInterface {
   );
 
   const leave = useCallback(
-    (player: Player) => {
-      db.update({ type: "leave", player });
+    (id: string) => {
+      db.update({ type: "leave", id });
     },
     [db]
   );
@@ -155,6 +160,17 @@ export function useSharedData(): SharedDataInterface {
     },
     [db]
   );
+
+  // automatically leave on Disconnect
+  useEffect(() => {
+    const handleDisconnect: Parameters<typeof db.registerOnDisconnect>[0] = (
+      conn
+    ) => {
+      leave(conn.connection.peer);
+    };
+    db.registerOnDisconnect(handleDisconnect);
+    return () => db.removeOnDisconnect(handleDisconnect);
+  }, [db, leave]);
 
   return {
     state,

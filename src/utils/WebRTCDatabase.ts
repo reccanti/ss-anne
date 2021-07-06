@@ -84,6 +84,7 @@ type Message<Data extends object, Action extends object> =
   | SendConnections;
 
 type OnConnectCB = (conn: Conn) => void;
+type OnDisconnectCB = (conn: Conn) => void;
 type OnChangeCB<Data extends object> = (data: Data) => void;
 
 export class WebRTCDatabase<Data extends object, Action extends object> {
@@ -95,6 +96,7 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
   private reducer: (data: Data, action: Action) => Data;
 
   private onConnectCallbacks: Set<OnConnectCB> = new Set();
+  private onDisconnectCallbacks: Set<OnDisconnectCB> = new Set();
   private onChangeCallbacks: Set<OnChangeCB<Data>> = new Set();
 
   public get id(): string {
@@ -143,6 +145,10 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
       });
       conn.on("close", () => {
         console.log(`See ya ${conn.peer}`);
+        const fullConn = this.connections.get(conn.peer) as Conn;
+        this.onDisconnectCallbacks.forEach((cb) => {
+          cb(fullConn);
+        });
         this.connections.delete(conn.peer);
       });
 
@@ -427,11 +433,17 @@ export class WebRTCDatabase<Data extends object, Action extends object> {
   /**
    * Functions for managing calbacks
    */
-  regiserOnConnect(cb: OnConnectCB) {
+  registerOnConnect(cb: OnConnectCB) {
     this.onConnectCallbacks.add(cb);
   }
   removeOnConnect(cb: OnConnectCB) {
     this.onConnectCallbacks.delete(cb);
+  }
+  registerOnDisconnect(cb: OnDisconnectCB) {
+    this.onDisconnectCallbacks.add(cb);
+  }
+  removeOnDisconnect(cb: OnDisconnectCB) {
+    this.onDisconnectCallbacks.delete(cb);
   }
   registerOnChange(cb: OnChangeCB<Data>) {
     this.onChangeCallbacks.add(cb);
