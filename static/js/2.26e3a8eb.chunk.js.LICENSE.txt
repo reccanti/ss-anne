@@ -6,6 +6,8 @@ object-assign
 
 /*! (c) Andrea Giammarchi - ISC */
 
+/*! https://mths.be/base64 v1.0.0 by @mathias | MIT license */
+
 /**
  * A better abstraction over CSS.
  *
