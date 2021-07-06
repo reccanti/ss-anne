@@ -22,6 +22,11 @@ import { LobbyPage } from "./LobbyPage";
 import { PeerJSProvider, initializePeerJS } from "./PeerJSContext";
 import { useContext, useState, useEffect } from "react";
 import PeerJS from "peerjs";
+import {
+  SharedData,
+  initializeSharedData,
+  SharedDataProvider,
+} from "./SharedData";
 
 function Debug() {
   const { dispatch } = useContext(AllTheFuckingStateCtx);
@@ -45,8 +50,10 @@ function Debug() {
 
 function App() {
   const [peer, setPeer] = useState<PeerJS | null>(null);
+  const [sharedData, setSharedData] = useState<SharedData | null>(null);
   const [err, setErr] = useState<Error | null>(null);
 
+  // initialize PeerJS
   useEffect(() => {
     const listen = async () => {
       try {
@@ -59,34 +66,52 @@ function App() {
     listen();
   }, []);
 
-  if (peer) {
+  // initialize shared data
+  useEffect(() => {
+    if (!peer) {
+      return;
+    }
+    const listen = async () => {
+      try {
+        const db = initializeSharedData(peer);
+        setSharedData(db);
+      } catch (e) {
+        setErr(e);
+      }
+    };
+    listen();
+  }, [peer]);
+
+  if (peer && sharedData) {
     return (
       <PeerJSProvider peer={peer}>
-        <AllTheFuckingStateProvider>
-          <PokeGetterProvider lang="en">
-            <Box>
-              {/**
-               * @TODO - instead of hard-coding this, it might be better
-               * to do some fancy logic to determine what the base-url
-               * actually is. This way, localhost:3000/ and reccanti.github.io/ss-anne
-               * would both work
-               *
-               * ~reccanti 6/22/2021
-               */}
-              <Router basename="/ss-anne">
-                <Debug />
-                <Switch>
-                  <Route exact path="/">
-                    <LandingPage />
-                  </Route>
-                  <Route exact path="/:peer_id">
-                    <LobbyPage />
-                  </Route>
-                </Switch>
-              </Router>
-            </Box>
-          </PokeGetterProvider>
-        </AllTheFuckingStateProvider>
+        <SharedDataProvider db={sharedData}>
+          <AllTheFuckingStateProvider>
+            <PokeGetterProvider lang="en">
+              <Box>
+                {/**
+                 * @TODO - instead of hard-coding this, it might be better
+                 * to do some fancy logic to determine what the base-url
+                 * actually is. This way, localhost:3000/ and reccanti.github.io/ss-anne
+                 * would both work
+                 *
+                 * ~reccanti 6/22/2021
+                 */}
+                <Router basename="/ss-anne">
+                  <Debug />
+                  <Switch>
+                    <Route exact path="/">
+                      <LandingPage />
+                    </Route>
+                    <Route exact path="/:peer_id">
+                      <LobbyPage />
+                    </Route>
+                  </Switch>
+                </Router>
+              </Box>
+            </PokeGetterProvider>
+          </AllTheFuckingStateProvider>
+        </SharedDataProvider>
       </PeerJSProvider>
     );
   } else if (err) {

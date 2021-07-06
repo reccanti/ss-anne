@@ -24,6 +24,7 @@ import { Game, Pokedex, Pokemon } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
 import { CreateUser } from "./CreateUserPage";
+import { useSharedData } from "./SharedData";
 
 /**
  * This is where we'll set up the board for an upcoming game.
@@ -59,6 +60,7 @@ function BoardSetupManager() {
   const [dexes, setDexes] = useState<Pokedex[]>([]);
   const { state, dispatch } = useContext(AllTheFuckingStateCtx);
   const getter = useContext(PokeGetterContext);
+
   const history = useHistory();
 
   const peer = usePeerJS();
@@ -234,8 +236,19 @@ function BoardSetup(props: BoardSetupProps) {
 
 export function LandingPage() {
   const { state } = useContext(AllTheFuckingStateCtx);
+  const peer = usePeerJS();
+  const { join } = useSharedData();
+
+  const handleSubmit = ({ name }: { name: string }) => {
+    const player = {
+      name,
+      id: peer.id,
+    };
+    join(player);
+  };
+
   if (state.user) {
     return <BoardSetupManager />;
   }
-  return <CreateUser />;
+  return <CreateUser onSubmit={handleSubmit} />;
 }
