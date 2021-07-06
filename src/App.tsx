@@ -1,5 +1,5 @@
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Switch,
   Route,
   useHistory,
@@ -97,7 +97,7 @@ function App() {
                  *
                  * ~reccanti 6/22/2021
                  */}
-                <Router basename="/ss-anne">
+                <Router basename="/ss-anne/">
                   <Debug />
                   <Switch>
                     <Route exact path="/">
