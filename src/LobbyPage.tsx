@@ -15,7 +15,7 @@ import { useParams } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { CreateUser } from "./CreateUserPage";
 import { usePeerJS } from "./PeerJSContext";
-import { useSharedData } from "./sharedData";
+import { useSharedData, creators } from "./sharedData";
 
 /**
  * The lobby page where the user can join a page
@@ -80,7 +80,7 @@ function JoinPage() {
           </Typography>
         </Box>
         <Grid className={styles.cardGrid} container>
-          {state.waiting.map((player) => (
+          {state.users.waiting.map((player) => (
             // This is a bad key. Store better info in the User
             <Grid key={player.id} container item xs={2}>
               <Card className={styles.card}>
@@ -104,7 +104,7 @@ export function LobbyPage() {
   const [isReady, setIsReady] = useState<boolean>(false);
 
   const peer = usePeerJS();
-  const { joinWaiting, clone } = useSharedData();
+  const { clone, update } = useSharedData();
   const { state } = useContext(AllTheFuckingStateCtx);
   const { peer_id } = useParams<{ peer_id: string }>();
 
@@ -124,7 +124,7 @@ export function LobbyPage() {
       name,
       id: peer.id,
     };
-    joinWaiting(player);
+    update(creators.users.joinWaiting(player));
   };
 
   if (!isReady) {

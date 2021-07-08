@@ -6,136 +6,63 @@ import {
   useEffect,
   useState,
 } from "react";
-import { WebRTCDatabase } from "../utils/WebRTCDatabase";
 import { useContext } from "react";
 
-interface Player {
-  id: string;
-  name: string;
-}
+import { WebRTCDatabase } from "../utils/WebRTCDatabase";
+import {
+  reducer as userReducer,
+  Action as UserAction,
+  State as UserState,
+  initialState as initialUserState,
+  creators as userActionCreators,
+} from "./users";
 
-// state
+// combined state
 
 interface State {
-  players: [] | [Player] | [Player, Player];
-  waiting: Player[];
+  users: UserState;
 }
 
-// actions
+// combined actions
 
-interface BaseAction {
-  type: string;
-}
+type Action = UserAction;
 
-interface JoinWaiting extends BaseAction {
-  type: "joinWaiting";
-  player: Player;
-}
+// combined action creators
 
-interface LeaveWaiting extends BaseAction {
-  type: "leaveWaiting";
-  id: string;
-}
+export const creators = {
+  users: userActionCreators,
+};
 
-interface JoinPlaying extends BaseAction {
-  type: "joinPlaying";
-  player: Player;
-}
+// combined reducer
 
-interface LeavePlaying extends BaseAction {
-  type: "leavePlaying";
-  id: string;
-}
-
-type Action = JoinWaiting | LeaveWaiting | JoinPlaying | LeavePlaying;
-
-// DB Type
-
-export type SharedData = WebRTCDatabase<State, Action>;
-
-// reducer
-
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case "joinWaiting": {
-      return {
-        ...state,
-        waiting: [...state.waiting, action.player],
-      };
-    }
-    case "leaveWaiting": {
-      return {
-        ...state,
-        waiting: state.waiting.filter((w) => w.id !== action.id),
-      };
-    }
-    case "joinPlaying": {
-      let newPlayers: [] | [Player] | [Player, Player] = [];
-      switch (state.players.length) {
-        case 0: {
-          newPlayers = [action.player];
-          break;
-        }
-        case 1: {
-          newPlayers = [...state.players, action.player];
-          break;
-        }
-        default: {
-          throw Error("There can only be 2 players in a game");
-        }
-      }
-      return {
-        ...state,
-        waiting: state.waiting.filter((w) => w.id !== action.player.id),
-        players: newPlayers,
-      };
-    }
-    case "leavePlaying": {
-      const player = state.players.find((p) => p.id === action.id);
-      if (player) {
-        return {
-          ...state,
-          waiting: [...state.waiting, player],
-          players: state.players.filter((player) => player.id !== action.id) as
-            | []
-            | [Player],
-        };
-      }
-      return state;
-    }
-    default: {
-      return state;
-    }
-  }
+function reducer(state: State, action: Action) {
+  return {
+    users: { ...userReducer(state.users, action) },
+  };
 }
 
 // function to create the database
 
 export function initializeSharedData(peer: PeerJS): SharedData {
   const initialState: State = {
-    players: [],
-    waiting: [],
+    users: initialUserState,
   };
   const db = new WebRTCDatabase(initialState, reducer, peer);
   return db;
 }
+
+// DB Type
+
+export type SharedData = WebRTCDatabase<State, Action>;
 
 // Base SharedDataContext
 
 const SharedDataContext = createContext<null | SharedData>(null);
 
 interface SharedDataInterface {
-  // methods for interacting with data
-  joinWaiting: (player: Player) => void;
-  leaveWaiting: (id: string) => void;
-  joinPlaying: (player: Player) => void;
-  leavePlaying: (id: string) => void;
-
-  // state
   state: State;
-
-  // connection
   clone: (id: string) => Promise<void>;
+  update: (action: Action) => void;
 }
 
 function useBaseSharedData(): SharedData {
@@ -159,35 +86,7 @@ export function useSharedData(): SharedDataInterface {
     return () => db.removeOnChange(handleChange);
   }, [db]);
 
-  // helpful callbacks
-  const joinWaiting = useCallback(
-    (player: Player) => {
-      db.update({ type: "joinWaiting", player });
-    },
-    [db]
-  );
-
-  const leaveWaiting = useCallback(
-    (id: string) => {
-      db.update({ type: "leaveWaiting", id });
-    },
-    [db]
-  );
-
-  const joinPlaying = useCallback(
-    (player: Player) => {
-      db.update({ type: "joinPlaying", player });
-    },
-    [db]
-  );
-
-  const leavePlaying = useCallback(
-    (id) => {
-      db.update({ type: "leavePlaying", id });
-    },
-    [db]
-  );
-
+  // wrapper around db.clone
   const clone = useCallback(
     async (id: string) => {
       await db.clone(id);
@@ -195,24 +94,31 @@ export function useSharedData(): SharedDataInterface {
     [db]
   );
 
-  // automatically leave on Disconnect
+  // wrapper around db.update
+  const update = useCallback((action: Action) => db.update(action), [db]);
+
+  /**
+   * automatically leave on Disconnect
+   *
+   * @TODO - Not sure if this makes sense here. Maybe move it into the
+   * "initializeSharedDb" function?
+   *
+   * ~reccanti 7/8/2021
+   */
   useEffect(() => {
     const handleDisconnect: Parameters<typeof db.registerOnDisconnect>[0] = (
       conn
     ) => {
-      leaveWaiting(conn.connection.peer);
+      update(creators.users.leaveWaiting(conn.connection.peer));
     };
     db.registerOnDisconnect(handleDisconnect);
     return () => db.removeOnDisconnect(handleDisconnect);
-  }, [db, leaveWaiting]);
+  }, [db, update]);
 
   return {
     state,
-    joinWaiting,
-    leaveWaiting,
-    joinPlaying,
-    leavePlaying,
     clone,
+    update,
   };
 }
 
