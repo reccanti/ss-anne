@@ -26,7 +26,7 @@ import {
   SharedData,
   initializeSharedData,
   SharedDataProvider,
-} from "./SharedData";
+} from "./sharedData";
 
 function Debug() {
   const { dispatch } = useContext(AllTheFuckingStateCtx);

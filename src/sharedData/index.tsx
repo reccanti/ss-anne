@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { WebRTCDatabase } from "./utils/WebRTCDatabase";
+import { WebRTCDatabase } from "../utils/WebRTCDatabase";
 import { useContext } from "react";
 
 interface Player {

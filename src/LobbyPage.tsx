@@ -15,7 +15,7 @@ import { useParams } from "react-router";
 import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
 import { CreateUser } from "./CreateUserPage";
 import { usePeerJS } from "./PeerJSContext";
-import { useSharedData } from "./SharedData";
+import { useSharedData } from "./sharedData";
 
 /**
  * The lobby page where the user can join a page

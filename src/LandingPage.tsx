@@ -24,7 +24,7 @@ import { Game, Pokedex, Pokemon } from "./utils/pokeGetter";
 import { BetterSelect } from "./utils/BetterSelect";
 import { BoardContainer, Board, Cell } from "./Board";
 import { CreateUser } from "./CreateUserPage";
-import { useSharedData } from "./SharedData";
+import { useSharedData } from "./sharedData";
 
 /**
  * This is where we'll set up the board for an upcoming game.
