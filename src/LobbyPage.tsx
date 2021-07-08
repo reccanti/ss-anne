@@ -104,7 +104,7 @@ export function LobbyPage() {
   const [isReady, setIsReady] = useState<boolean>(false);
 
   const peer = usePeerJS();
-  const { join, clone } = useSharedData();
+  const { joinWaiting, clone } = useSharedData();
   const { state } = useContext(AllTheFuckingStateCtx);
   const { peer_id } = useParams<{ peer_id: string }>();
 
@@ -124,7 +124,7 @@ export function LobbyPage() {
       name,
       id: peer.id,
     };
-    join(player);
+    joinWaiting(player);
   };
 
   if (!isReady) {

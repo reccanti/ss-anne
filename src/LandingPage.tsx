@@ -237,14 +237,14 @@ function BoardSetup(props: BoardSetupProps) {
 export function LandingPage() {
   const { state } = useContext(AllTheFuckingStateCtx);
   const peer = usePeerJS();
-  const { join } = useSharedData();
+  const { joinWaiting } = useSharedData();
 
   const handleSubmit = ({ name }: { name: string }) => {
     const player = {
       name,
       id: peer.id,
     };
-    join(player);
+    joinWaiting(player);
   };
 
   if (state.user) {
