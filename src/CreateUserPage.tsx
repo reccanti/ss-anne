@@ -6,7 +6,7 @@ import {
   TextField,
   Button,
 } from "@material-ui/core";
-import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
+import { LocalStateContext } from "./LocalState";
 
 /**
  * This is a sub-page of the landing page. Here, we ask the user to
@@ -40,7 +40,7 @@ interface CreateUserProps {
 
 export function CreateUser(props: CreateUserProps) {
   const styles = useCreateStyles();
-  const { dispatch } = useContext(AllTheFuckingStateCtx);
+  const { dispatch } = useContext(LocalStateContext);
   const [state, setState] = useState<FormState>({ name: "" });
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -59,10 +59,6 @@ export function CreateUser(props: CreateUserProps) {
       props.onSubmit({ name: state.name });
     }
     dispatch({ type: "setUser", payload: { name: state.name } });
-    dispatch({
-      type: "setBoardName",
-      payload: { name: `${state.name}'s board` },
-    });
   };
 
   return (

@@ -12,10 +12,7 @@ import {
   CircularProgress,
 } from "@material-ui/core";
 import { Home } from "@material-ui/icons";
-import {
-  AllTheFuckingStateProvider,
-  AllTheFuckingStateCtx,
-} from "./AllTheFuckingState";
+import { LocalStateProvider, LocalStateContext } from "./LocalState";
 import { PokeGetterProvider } from "./PokeGetterContext";
 import { LandingPage } from "./LandingPage";
 import { LobbyPage } from "./LobbyPage";
@@ -29,7 +26,7 @@ import {
 } from "./sharedData";
 
 function Debug() {
-  const { dispatch } = useContext(AllTheFuckingStateCtx);
+  const { dispatch } = useContext(LocalStateContext);
   const history = useHistory();
 
   const handleClear = () => {
@@ -87,7 +84,7 @@ function App() {
       <PeerJSProvider peer={peer}>
         <PokeGetterProvider lang="en">
           <SharedDataProvider db={sharedData}>
-            <AllTheFuckingStateProvider>
+            <LocalStateProvider>
               <Box>
                 {/**
                  * @TODO - instead of hard-coding this, it might be better
@@ -109,7 +106,7 @@ function App() {
                   </Switch>
                 </Router>
               </Box>
-            </AllTheFuckingStateProvider>
+            </LocalStateProvider>
           </SharedDataProvider>
         </PokeGetterProvider>
       </PeerJSProvider>

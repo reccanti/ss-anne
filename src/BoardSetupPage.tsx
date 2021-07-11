@@ -9,7 +9,7 @@ import {
   CircularProgress,
 } from "@material-ui/core";
 import { useState, useEffect, useMemo, FormEvent } from "react";
-import { useAllTheFuckingState } from "./AllTheFuckingState";
+import { useLocalState } from "./LocalState";
 import { usePokeGetter } from "./PokeGetterContext";
 import { Game, Pokedex, Pokemon } from "./utils/pokeGetter";
 import { BoardContainer, Board, Cell } from "./Board";
@@ -317,7 +317,7 @@ interface BoardSetupProps {
 export function BoardSetupPage({ onSubmit }: BoardSetupProps) {
   const styles = useStyles();
 
-  const { state: localState } = useAllTheFuckingState();
+  const { state: localState } = useLocalState();
   const { state: sharedState } = useSharedData();
 
   const defaultName = localState.user ? `${localState.user.name}'s board` : "";

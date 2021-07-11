@@ -7,14 +7,14 @@
 
 import { ComponentProps } from "react";
 import { useHistory } from "react-router";
-import { useAllTheFuckingState } from "./AllTheFuckingState";
+import { useLocalState } from "./LocalState";
 import { usePeerJS } from "./PeerJSContext";
 import { CreateUser } from "./CreateUserPage";
 import { useSharedData, creators } from "./sharedData";
 import { BoardSetupPage } from "./BoardSetupPage";
 
 export function LandingPage() {
-  const { state } = useAllTheFuckingState();
+  const { state } = useLocalState();
   const peer = usePeerJS();
   const { update } = useSharedData();
   const history = useHistory();

@@ -10,9 +10,9 @@ import {
   CircularProgress,
 } from "@material-ui/core";
 import AddIcon from "@material-ui/icons/Add";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { AllTheFuckingStateCtx } from "./AllTheFuckingState";
+import { useLocalState } from "./LocalState";
 import { CreateUser } from "./CreateUserPage";
 import { usePeerJS } from "./PeerJSContext";
 import { useSharedData, creators } from "./sharedData";
@@ -105,7 +105,7 @@ export function LobbyPage() {
 
   const peer = usePeerJS();
   const { clone, update } = useSharedData();
-  const { state } = useContext(AllTheFuckingStateCtx);
+  const { state } = useLocalState();
   const { peer_id } = useParams<{ peer_id: string }>();
 
   useEffect(() => {
