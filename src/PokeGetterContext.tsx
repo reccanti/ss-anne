@@ -3,12 +3,20 @@
  * so that we don't have to reinitialize it everywhere
  */
 
-import { createContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from "react";
 import { PokeGetter, Language } from "./utils/pokeGetter";
 
 const initialGetter = new PokeGetter({ lang: "en" });
 
 export const PokeGetterContext = createContext<PokeGetter>(initialGetter);
+
+export const usePokeGetter = () => useContext(PokeGetterContext);
 
 interface Props {
   children: ReactNode;

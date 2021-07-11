@@ -85,9 +85,9 @@ function App() {
   if (peer && sharedData) {
     return (
       <PeerJSProvider peer={peer}>
-        <SharedDataProvider db={sharedData}>
-          <AllTheFuckingStateProvider>
-            <PokeGetterProvider lang="en">
+        <PokeGetterProvider lang="en">
+          <SharedDataProvider db={sharedData}>
+            <AllTheFuckingStateProvider>
               <Box>
                 {/**
                  * @TODO - instead of hard-coding this, it might be better
@@ -109,9 +109,9 @@ function App() {
                   </Switch>
                 </Router>
               </Box>
-            </PokeGetterProvider>
-          </AllTheFuckingStateProvider>
-        </SharedDataProvider>
+            </AllTheFuckingStateProvider>
+          </SharedDataProvider>
+        </PokeGetterProvider>
       </PeerJSProvider>
     );
   } else if (err) {

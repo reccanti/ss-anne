@@ -12,6 +12,13 @@ export interface State {
   waiting: Player[];
 }
 
+// initial state
+
+export const initialState: State = {
+  players: [],
+  waiting: [],
+};
+
 // actions
 
 interface BaseAction {
@@ -124,8 +131,3 @@ export function reducer(state: State, action: Action): State {
     }
   }
 }
-
-export const initialState: State = {
-  players: [],
-  waiting: [],
-};

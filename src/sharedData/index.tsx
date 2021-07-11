@@ -16,28 +16,38 @@ import {
   initialState as initialUserState,
   creators as userActionCreators,
 } from "./users";
+import {
+  reducer as boardReducer,
+  Action as BoardAction,
+  State as BoardState,
+  initialState as initialBoardState,
+  creators as boardActionCreators,
+} from "./boardConfig";
 
 // combined state
 
 interface State {
   users: UserState;
+  board: BoardState;
 }
 
 // combined actions
 
-type Action = UserAction;
+type Action = UserAction | BoardAction;
 
 // combined action creators
 
 export const creators = {
   users: userActionCreators,
+  board: boardActionCreators,
 };
 
 // combined reducer
 
 function reducer(state: State, action: Action) {
   return {
-    users: { ...userReducer(state.users, action) },
+    users: { ...userReducer(state.users, action as UserAction) },
+    board: { ...boardReducer(state.board, action as BoardAction) },
   };
 }
 
@@ -46,6 +56,7 @@ function reducer(state: State, action: Action) {
 export function initializeSharedData(peer: PeerJS): SharedData {
   const initialState: State = {
     users: initialUserState,
+    board: initialBoardState,
   };
   const db = new WebRTCDatabase(initialState, reducer, peer);
   return db;

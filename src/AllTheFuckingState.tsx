@@ -10,6 +10,7 @@
 import { createContext, ReactNode, useReducer } from "react";
 import { Pokemon, PokeGeneration, Game, Pokedex } from "./utils/pokeGetter";
 import PeerJS from "peerjs";
+import { useContext } from "react";
 
 // various types for interacting with state
 
@@ -239,6 +240,8 @@ const initialContext: FuckingContext = {
 
 export const AllTheFuckingStateCtx =
   createContext<FuckingContext>(initialContext);
+
+export const useAllTheFuckingState = () => useContext(AllTheFuckingStateCtx);
 
 interface Props {
   children: ReactNode;
