@@ -7,6 +7,7 @@ import {
   Button,
 } from "@material-ui/core";
 import { LocalStateContext } from "./LocalState";
+import { usePeerJS } from "./PeerJSContext";
 
 /**
  * This is a sub-page of the landing page. Here, we ask the user to
@@ -41,6 +42,7 @@ interface CreateUserProps {
 export function CreateUser(props: CreateUserProps) {
   const styles = useCreateStyles();
   const { dispatch } = useContext(LocalStateContext);
+  const peer = usePeerJS();
   const [state, setState] = useState<FormState>({ name: "" });
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +60,7 @@ export function CreateUser(props: CreateUserProps) {
     if (props.onSubmit) {
       props.onSubmit({ name: state.name });
     }
-    dispatch({ type: "setUser", payload: { name: state.name } });
+    dispatch({ type: "setUser", user: { name: state.name, id: peer.id } });
   };
 
   return (

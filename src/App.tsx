@@ -15,7 +15,7 @@ import { Home } from "@material-ui/icons";
 import { LocalStateProvider, LocalStateContext } from "./LocalState";
 import { PokeGetterProvider } from "./PokeGetterContext";
 import { LandingPage } from "./LandingPage";
-import { LobbyPage } from "./LobbyPage";
+import { GamePage } from "./GamePage";
 import { PeerJSProvider, initializePeerJS } from "./PeerJSContext";
 import { useContext, useState, useEffect } from "react";
 import PeerJS from "peerjs";
@@ -101,7 +101,7 @@ function App() {
                       <LandingPage />
                     </Route>
                     <Route exact path="/:peer_id">
-                      <LobbyPage />
+                      <GamePage />
                     </Route>
                   </Switch>
                 </Router>

@@ -8,18 +8,13 @@
  * ~reccanti 6/19/2021
  */
 import { createContext, ReactNode, useReducer, useContext } from "react";
-
-// various types for interacting with state
-
-interface User {
-  name: string;
-}
+import { Player } from "./sharedData/users";
 
 // compose all our types into a state blob. Create the reducer
 // and action for managing this
 
 interface LocalState {
-  user: User | null;
+  user: Player | null;
 }
 
 const initialState: LocalState = {
@@ -32,9 +27,7 @@ interface BaseAction {
 
 interface SetUser extends BaseAction {
   type: "setUser";
-  payload: {
-    name: string;
-  };
+  user: Player;
 }
 
 interface Clear extends BaseAction {
@@ -48,9 +41,7 @@ function reducer(state: LocalState, action: Action): LocalState {
     case "setUser": {
       return {
         ...state,
-        user: {
-          name: action.payload.name,
-        },
+        user: { ...action.user },
       };
     }
     case "clear": {
